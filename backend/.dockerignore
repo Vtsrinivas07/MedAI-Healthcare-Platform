@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.env
+.git
+node_modules/
+backend/models/weights/
+*.pth
+dist/
+build/
+*.egg-info

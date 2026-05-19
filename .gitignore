@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Environment files
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# Build / logs / temp
+build/
+dist/
+*.log
+*.tmp
+*.temp
+.tmp/
+
+# Jupyter
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+
+# Local artifacts
+backend/models/weights/*.pt
+backend/models/weights/*.pth
+backend/models/weights/*.ckpt
+backend/models/weights/*.bin
+backend/models/weights/*.onnx
+backend/models/weights/*.joblib
+backend/models/weights/*.pkl
+backend/models/weights/*.npz
+backend/models/weights/*.csv
+backend/models/weights/*.txt
+backend/chroma_db/
+backend/faiss_index/
+backend/*.index
+backend/*.faiss
+backend/data/
+backend/uploads/
+
+# Notebook / training outputs
+medmnist_results.csv
+medmnist_summary.txt
+nfrvfl_comparison_results.csv
+nfrvfl_summary.txt
