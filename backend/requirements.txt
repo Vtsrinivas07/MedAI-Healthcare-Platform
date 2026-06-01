@@ -12,6 +12,7 @@ pydantic-settings
 python-jose[cryptography]
 bcrypt
 google-auth
+google-generativeai
 pypdf
 torch
 timm
