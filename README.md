@@ -1,189 +1,151 @@
 # MedAI Healthcare Platform
 
-MedAI is a full-stack healthcare platform built around a FastAPI backend, a Vite + React frontend, and a medical AI layer for chat, image-based diagnosis, reminders, consultations, prescriptions, lab tests, pharmacy flows, and role-aware dashboards.
+MedAI is an open, full-stack healthcare platform that combines a FastAPI backend, a Vite + React frontend, and a medical AI layer for chat, image diagnosis, prescriptions, lab flows, and role-aware dashboards.
 
-## What’s Inside
+This README gives a concise, step-by-step setup, development, and deployment guide so anyone can run the project locally or deploy it to production.
 
-- [backend/](backend/) contains the API, domain routers, middleware, configuration, schedulers, and model services.
-- [frontend/](frontend/) contains the React UI and page-level workflows for patients, doctors, and admins.
-- [models/](models/) stores trained checkpoints and shared model assets.
-- [medical_docs/](medical_docs/) contains retrieval content used by the medical guidance and RAG flows.
-- [scripts/](scripts/) contains data, model, and verification helpers.
-- [setup_models.bat](setup_models.bat) and [setup_models.sh](setup_models.sh) provide quick model setup entry points.
+---
 
-## Platform Overview
+## Quick links
 
-MedAI is organized as a single product with several coordinated workflows:
+- Backend entry: [backend/main.py](backend/main.py)
+- Backend settings: [backend/config/settings.py](backend/config/settings.py)
+- Frontend entry: [frontend/src/main.jsx](frontend/src/main.jsx)
+- Demo seed script: [backend/scripts/seed_demo_doctors.py](backend/scripts/seed_demo_doctors.py)
 
-- Patient-facing flows for chat, health tracking, medicines, lab tests, consultations, orders, and prescriptions.
-- Doctor-facing flows for dashboards, patient management, consultations, appointments, prescriptions, and settings.
-- Admin-facing flows for user management, roles, analytics, settings, and doctor onboarding.
-- AI services for chat, document parsing, symptom guidance, and medical image diagnosis.
-- Model-backed image classification for supported modalities such as skin, chest, eye/OCT, and brain/organ-based images.
+---
 
-## Key Features
+## Tech stack
 
-- Authentication with JWT and Google OAuth.
-- Role-based route protection for patients, doctors, and admins.
-- AI chat and symptom guidance with optional retrieval augmentation.
-- Medical image diagnosis using stored weights and modality-specific pipelines.
-- Health logs, analytics, reminders, and longitudinal tracking.
-- Lab test bookings, prescriptions, product browsing, and order flows.
-- Doctor and admin dashboards with operational views.
+- Frontend: React, Vite, JavaScript, React Router, Axios, Tailwind CSS
+- Backend: Python, FastAPI, Uvicorn
+- Database: MongoDB (Motor/PyMongo)
+- Auth: JWT, Google OAuth
+- AI/ML: Gemini API (`google-generativeai`), PyTorch, `timm`, `medmnist`, `sentence-transformers`
+- Infra / Deploy: Render (backend), Vercel (frontend), Docker (optional)
+- Other: Redis (optional), SendGrid, Twilio, CORS, rate limiting
 
-## Architecture
+---
 
-The backend starts a FastAPI application that connects to MongoDB, optionally connects to Redis, launches the reminder scheduler, applies rate limiting, and includes routers for authentication, chat, health, medicine, admin, doctor, lab tests, products, prescriptions, analysis, diagnosis, orders, and consultations.
+## Prerequisites
 
-The frontend uses React Router, Google OAuth, Tailwind CSS, Framer Motion, and lazy-loaded pages to keep the app responsive while preserving clear separation between public, patient, doctor, and admin routes.
+- Python 3.10+ and pip
+- Node.js 18+ and npm/yarn
+- A MongoDB instance (Atlas or local)
+- (Optional) Redis instance for caching/rate limiting
+- A Google Cloud OAuth client (Client ID + Secret) if you want Google login
 
-## Requirements
+---
 
-- Python 3.10 or newer.
-- Node.js 18 or newer.
-- MongoDB.
-- Redis for caching and rate limiting support.
-- A Google OAuth client for frontend login.
+## Environment variables
 
-## Backend Setup
+Create a `.env` file in `backend/`. Required values for basic operation:
 
-1. Create and activate a Python virtual environment.
-2. Install backend dependencies:
+- `MONGODB_URI` — your MongoDB connection string
+- `JWT_SECRET_KEY` — secret for signing JWT access/refresh tokens
+- `GOOGLE_CLIENT_ID` — Google OAuth client ID (frontend uses `VITE_GOOGLE_CLIENT_ID`)
+- `GOOGLE_CLIENT_SECRET` — Google OAuth client secret
 
-```bash
-cd backend
-pip install -r requirements.txt
-```
+Optional integrations (enable as needed):
 
-3. Create a backend `.env` file with the required values. Use [backend/config/settings.py](backend/config/settings.py) as the source of truth for the settings the app reads. The backend expects at least:
-
-- `MONGODB_URI`
-- `JWT_SECRET_KEY`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-
-4. Optionally add AI and integration settings depending on the features you want to enable:
-
-- `AI_PROVIDER`
-- `GEMINI_API_KEY`
-- `HUGGINGFACE_API_KEY`
-- `OPENAI_API_KEY`
-- `OLLAMA_BASE_URL`
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `SENDGRID_API_KEY`
+- `AI_PROVIDER`, `GEMINI_API_KEY`, `HUGGINGFACE_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_BASE_URL`
+- `REDIS_URL` — Redis connection URL for caching and rate limiting
+- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`
 - `GOOGLE_MAPS_API_KEY`
 
-5. Start the backend:
+Frontend environment (create `.env` in `frontend/`):
 
-```bash
-python main.py
-```
+- `VITE_GOOGLE_CLIENT_ID` — matches backend `GOOGLE_CLIENT_ID`
+- `VITE_API_URL` — backend base URL for the frontend (default: `http://localhost:8000`)
 
-The API runs on `http://localhost:8000`. Interactive documentation is available at `http://localhost:8000/docs`.
+---
 
-### Backend Behavior Notes
+## Quick local development (recommended)
 
-- The app loads environment variables from `.env`.
-- Redis is optional at startup; if it is unavailable, the backend starts with a warning and rate limiting is degraded.
-- On Windows, Uvicorn reload is intentionally opt-in through `UVICORN_RELOAD=1` because reloading can double-initialize heavier ML imports.
-
-## Frontend Setup
-
-1. Install frontend dependencies:
-
-```bash
-cd frontend
-npm install
-```
-
-2. Create a frontend `.env` file with:
-
-- `VITE_GOOGLE_CLIENT_ID`
-- `VITE_API_URL` if you want to point the UI at a non-default backend URL
-
-3. Start the development server:
-
-```bash
-npm run dev
-```
-
-The frontend runs on `http://localhost:5173` by default.
-
-### Frontend Scripts
-
-- `npm run dev` starts the development server.
-- `npm run build` creates a production build.
-- `npm run preview` serves the production build locally.
-- `npm run lint` checks the codebase with ESLint.
-- `npm run format` formats the source files with Prettier.
-
-## Model Setup
-
-The repository already includes trained weights under [models/weights/](models/weights/), including modality-specific EfficientNet checkpoints and the symptom text classifier.
-
-If you want to regenerate baseline weights or retrain models:
-
-- Windows: run [setup_models.bat](setup_models.bat)
-- macOS/Linux: run [setup_models.sh](setup_models.sh)
-- Direct Python option: run [backend/scripts/setup_models_simple.py](backend/scripts/setup_models_simple.py)
-
-The quick setup path creates ImageNet-pretrained baseline classifiers. For stronger medical accuracy, use the MedMNIST training and download scripts in [backend/scripts/](backend/scripts/).
-
-### Supported Model Assets
-
-- [models/weights/efficientnet_skin_disease.pth](models/weights/efficientnet_skin_disease.pth)
-- [models/weights/efficientnet_chest_disease.pth](models/weights/efficientnet_chest_disease.pth)
-- [models/weights/efficientnet_eye_disease.pth](models/weights/efficientnet_eye_disease.pth)
-- [models/weights/efficientnet_brain_disease.pth](models/weights/efficientnet_brain_disease.pth)
-- [models/weights/symptom_text_clf.joblib](models/weights/symptom_text_clf.joblib)
-
-## Quick Start
-
-From the repository root:
+1) Start the backend
 
 ```bash
 cd backend
+python -m venv .venv
+source .venv/bin/activate   # macOS/Linux
+.venv\Scripts\Activate    # Windows PowerShell
 pip install -r requirements.txt
+# create .env (see variables above)
 python main.py
 ```
 
-In a second terminal:
+Backend runs on `http://localhost:8000` (docs at `/docs`).
+
+2) Start the frontend
 
 ```bash
 cd frontend
 npm install
+# create frontend/.env with VITE_GOOGLE_CLIENT_ID and VITE_API_URL
 npm run dev
 ```
 
-Then open the frontend in your browser and sign in with a configured Google OAuth client.
+Frontend runs on `http://localhost:5173` by default.
 
-## Common URLs
+---
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
-- Backend health check: `http://localhost:8000/api/health-check`
+## Demo credentials
 
-## Project Structure At A Glance
+The repository includes a seed script that inserts demo doctors. Run it from `backend/` after you point the `.env` to your DB.
 
-- `backend/main.py` wires the app, middleware, routers, and startup lifecycle.
-- `backend/config/` stores database, Redis, and settings configuration.
-- `backend/services/` contains the diagnosis, RAG, analytics, scheduler, and AI services.
-- `backend/routes/` contains feature-specific API routers.
-- `frontend/src/pages/` contains the user-facing screens.
-- `frontend/src/components/` contains shared layouts and reusable UI pieces.
+```bash
+cd backend
+python scripts/seed_demo_doctors.py
+```
 
-## Troubleshooting
+Demo doctor login credentials (common password): `Doctor@123`
 
-- If the backend fails to connect to MongoDB, verify `MONGODB_URI` and that the database is reachable.
-- If Redis is unavailable, expect warnings at startup and reduced rate-limiting support.
-- If Google login fails, confirm `VITE_GOOGLE_CLIENT_ID` on the frontend and `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on the backend.
-- If image diagnosis is unavailable, confirm the relevant files exist under [models/weights/](models/weights/).
-- If the frontend cannot reach the API, set `VITE_API_URL` to the correct backend base URL.
+- dr.aisha.patel@medai.demo  / Doctor@123
+- dr.michael.chen@medai.demo / Doctor@123
+- dr.sofia.martinez@medai.demo / Doctor@123
+- dr.rahul.iyer@medai.demo / Doctor@123
+- dr.priya.sharma@medai.demo / Doctor@123
+- dr.arjun.nair@medai.demo / Doctor@123
 
-## Notes
+Note: There is no demo admin account seeded by default. Create an admin through the admin UI or insert directly into the database.
 
-- The backend uses model and service defaults that make local development possible even if some optional integrations are not configured.
-- Medical image inference depends on the checkpoint files in [models/weights/](models/weights/).
-- The reminder scheduler and several AI features assume a working backend process and configured environment variables.
+---
+
+## Deployment (Render backend + Vercel frontend) — high level
+
+1) Backend (Render)
+
+- Create a new Web Service on Render and point it to this repository.
+- Use `rootDir: backend` so Render builds and runs from the backend folder.
+- Build command: `pip install -r ../requirements.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Add the same environment variables you set locally to the Render service (see Environment variables above).
+
+2) Frontend (Vercel)
+
+- Create a new Vercel project pointing to the `frontend/` folder.
+- Set `VITE_API_URL` to your Render service URL (e.g. `https://<your-render-service>.onrender.com`).
+- Add `VITE_GOOGLE_CLIENT_ID` to Vercel env vars.
+- Deploy.
+
+Important: If you test on Vercel preview URLs, add every preview origin as an authorized JavaScript origin in your Google Cloud OAuth client; otherwise Google will return an `origin_mismatch` error.
+
+---
+
+## Common troubleshooting
+
+- Google OAuth origin_mismatch: make sure the browser origin you're testing (exact preview or production URL) is listed in the Google Cloud Console OAuth credentials. Also confirm `VITE_GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_ID` match.
+- CORS errors: the backend reads CORS settings in `backend/main.py`; ensure `VITE_API_URL` points to the correct backend.
+- Missing packages at runtime: ensure `requirements.txt` is up-to-date and that Render installs from the file at the correct path (`backend/` vs repo root). See [render.yaml](render.yaml) in the repo for an example blueprint.
+- Redis warnings: Redis is optional. If you don't have Redis, the app runs with degraded rate-limiting.
+
+---
+
+## Where to look in the code
+
+- App startup and middleware: [backend/main.py](backend/main.py)
+- Settings and environment model: [backend/config/settings.py](backend/config/settings.py)
+- Auth routes: [backend/routes/auth.py](backend/routes/auth.py)
+- AI services and Gemini integration: [backend/services/ai_service.py](backend/services/ai_service.py)
+- Frontend API client: [frontend/src/services/api.js](frontend/src/services/api.js)
+- Frontend auth context: [frontend/src/context/AuthContext.jsx](frontend/src/context/AuthContext.jsx)

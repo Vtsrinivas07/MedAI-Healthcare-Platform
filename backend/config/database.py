@@ -16,17 +16,18 @@ async def connect_db():
         mongodb_uri = os.getenv("MONGODB_URI")
         mongodb_client = AsyncIOMotorClient(
             mongodb_uri,
-            server_api=ServerApi('1')
+            server_api=ServerApi('1'),
+            serverSelectionTimeoutMS=3000  # 3 seconds timeout
         )
         
         # Ping to verify connection
         await mongodb_client.admin.command('ping')
         
         database = mongodb_client[os.getenv("DB_NAME", "medai")]
-        print(f"[OK] MongoDB Connected: {database.name}")
+        print(f"[OK] MongoDB Connected: {database.name}", flush=True)
         
     except Exception as e:
-        print(f"[ERROR] MongoDB Connection Error: {str(e)}")
+        print(f"[ERROR] MongoDB Connection Error: {str(e)}", flush=True)
         raise e
 
 async def close_db():
@@ -34,7 +35,7 @@ async def close_db():
     global mongodb_client
     if mongodb_client:
         mongodb_client.close()
-        print("[OK] MongoDB connection closed")
+        print("[OK] MongoDB connection closed", flush=True)
 
 def get_database() -> Any:
     """Get database instance"""

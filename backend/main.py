@@ -22,28 +22,29 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         await connect_db()
-        print("[OK] Database connected")
+        print("[OK] Database connected", flush=True)
     except Exception as e:
-        print(f"[WARN] Database connection warning: {e}")
+        print(f"[WARN] Database connection warning: {e}", flush=True)
     
     try:
         await redis_client.connect()
         if redis_client.client:
-            print("[OK] Redis connected")
+            print("[OK] Redis connected", flush=True)
         else:
-            print("[WARN] Redis unavailable — rate limiting disabled")
+            print("[WARN] Redis unavailable — rate limiting disabled", flush=True)
     except Exception as e:
-        print(f"[WARN] Redis connection warning: {e}")
+        print(f"[WARN] Redis connection warning: {e}", flush=True)
     
-    # Warm up AI service and RAG embeddings so the first chat request is fast
-    try:
-        from routes.chat import get_ai_service
-        ai_svc = get_ai_service()
-        if ai_svc.rag_enabled and ai_svc.rag_service:
-            asyncio.create_task(ai_svc.rag_service.initialize())
-            print("[OK] RAG embedding warm-up started in background")
-    except Exception as e:
-        print(f"[WARN] AI warm-up skipped: {e}")
+    # Warm up AI service and RAG embeddings only when explicitly enabled
+    if os.getenv("ENABLE_RAG_WARMUP", "false").strip().lower() in ("1", "true", "yes"):
+        try:
+            from routes.chat import get_ai_service
+            ai_svc = get_ai_service()
+            if ai_svc.rag_enabled and ai_svc.rag_service:
+                asyncio.create_task(ai_svc.rag_service.initialize())
+                print("[OK] RAG embedding warm-up started in background", flush=True)
+        except Exception as e:
+            print(f"[WARN] AI warm-up skipped: {e}", flush=True)
     
     # Start medicine reminder scheduler only when explicitly enabled.
     scheduler_task = None
@@ -52,11 +53,11 @@ async def lifespan(app: FastAPI):
             from services.reminder_scheduler import reminder_scheduler
 
             scheduler_task = asyncio.create_task(reminder_scheduler.start())
-            print("[OK] Medicine Reminder Scheduler started")
+            print("[OK] Medicine Reminder Scheduler started", flush=True)
         except Exception as e:
-            print(f"[WARN] Reminder scheduler warning: {e}")
+            print(f"[WARN] Reminder scheduler warning: {e}", flush=True)
     
-    print("[OK] FastAPI server started successfully")
+    print("[OK] FastAPI server started successfully", flush=True)
     yield
     
     # Shutdown
@@ -66,13 +67,13 @@ async def lifespan(app: FastAPI):
 
             reminder_scheduler.stop()
             scheduler_task.cancel()
-            print("[STOP] Medicine Reminder Scheduler stopped")
+            print("[STOP] Medicine Reminder Scheduler stopped", flush=True)
     except:
         pass
     
     await close_db()
     await redis_client.disconnect()
-    print("[STOP] FastAPI server shut down")
+    print("[STOP] FastAPI server shut down", flush=True)
 
 app = FastAPI(
     title="MedAI Healthcare Platform",
