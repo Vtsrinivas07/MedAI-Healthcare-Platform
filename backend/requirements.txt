@@ -31,3 +31,4 @@ langchain-text-splitters
 joblib
 scikit-learn
 python-multipart
+sentence-transformers
