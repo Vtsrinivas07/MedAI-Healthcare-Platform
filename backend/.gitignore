@@ -63,6 +63,7 @@ faiss_index/
 *.npz
 *.csv
 *.txt
+!requirements.txt
 
 # Logs
 *.log

@@ -17,6 +17,8 @@ Steps:
 
 If Render locks the Root Directory, Build Command, or Start Command fields in the UI, do not fight the dashboard settings. Delete the existing service and recreate it from the repository blueprint so the updated `render.yaml` is applied.
 
+For this repo, if you use `rootDir: backend`, the build command must install from `../requirements.txt` because the repository root requirements file points into `backend/requirements.txt`.
+
 
 ### Render Environment Variables
 
@@ -86,7 +88,7 @@ Version pinning:
 - Current pin: `3.11.9`.
 
 Build/start commands:
-- Build: `pip install -r requirements.txt`
+- Build: `pip install -r ../requirements.txt`
 - Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 ## Frontend — Vercel
