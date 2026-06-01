@@ -5,7 +5,7 @@ import {
   Shield, Baby, Eye, Bone, Brain, Filter, ChevronDown, Check
 } from 'lucide-react';
 import ChatLayout from '../components/ChatLayout';
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 // Health Categories
 const HEALTH_CATEGORIES = [

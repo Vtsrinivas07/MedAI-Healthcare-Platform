@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AuthSuccess() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { setAuthSession } = useAuth();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -14,9 +14,7 @@ export default function AuthSuccess() {
     if (token && userStr) {
       try {
         const user = JSON.parse(decodeURIComponent(userStr));
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        login(user, token);
+        setAuthSession(token, user);
         navigate('/dashboard');
       } catch (error) {
         console.error('Auth success error:', error);
@@ -25,7 +23,7 @@ export default function AuthSuccess() {
     } else {
       navigate('/login?error=missing_credentials');
     }
-  }, [searchParams, login, navigate]);
+  }, [searchParams, setAuthSession, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background-dark">

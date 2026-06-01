@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import ChatLayout from '../components/ChatLayout';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 const STATUS_STYLES = {
   completed:        'bg-green-500/15 text-green-400 border border-green-500/30',

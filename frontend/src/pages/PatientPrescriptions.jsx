@@ -7,7 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import ChatLayout from '../components/ChatLayout';
 
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'http://localhost:8000');
+const API_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 // ─── Upload & Parse Modal ────────────────────────────────────────────
 function UploadModal({ onClose, onParsed }) {
@@ -39,7 +39,7 @@ function UploadModal({ onClose, onParsed }) {
       if (text.trim()) fd.append('prescription_text', text.trim());
       fd.append('save_to_db', 'true');
 
-      const res = await fetch('http://localhost:8000/api/prescriptions/upload', {
+      const res = await fetch(`${API_URL}/api/prescriptions/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
@@ -155,7 +155,7 @@ function ParsedResultModal({ parsed, prescriptionId, onClose, onSaved }) {
     setApplyError(null);
     try {
       const token = localStorage.getItem('authToken');
-      const res = await fetch('http://localhost:8000/api/medicine/bulk-reminders', {
+      const res = await fetch(`${API_URL}/api/medicine/bulk-reminders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ medicines: parsed.medicines }),
@@ -203,7 +203,7 @@ function ParsedResultModal({ parsed, prescriptionId, onClose, onSaved }) {
     if (parsed.medicines?.length) {
       try {
         const token = localStorage.getItem('authToken');
-        await fetch('http://localhost:8000/api/medicine/bulk-reminders', {
+        await fetch(`${API_URL}/api/medicine/bulk-reminders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ medicines: parsed.medicines }),
@@ -378,7 +378,7 @@ export default function PatientPrescriptions() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      const response = await fetch('http://localhost:8000/api/prescriptions', {
+      const response = await fetch(`${API_URL}/api/prescriptions`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -581,7 +581,7 @@ export default function PatientPrescriptions() {
                             onClick={async () => {
                               const token = localStorage.getItem('authToken');
                               try {
-                                const res = await fetch('http://localhost:8000/api/medicine/bulk-reminders', {
+                                const res = await fetch(`${API_URL}/api/medicine/bulk-reminders`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                   body: JSON.stringify({ medicines: prescription.medicines }),

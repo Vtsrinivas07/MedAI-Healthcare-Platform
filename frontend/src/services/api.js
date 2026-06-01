@@ -4,7 +4,7 @@ import axios from 'axios';
 // In dev, empty base uses Vite proxy (vite.config.js) so /api -> backend without CORS issues.
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? '' : 'http://localhost:8000');
+  (import.meta.env.DEV ? '' : 'https://medai-healthcare-platform-y8lf.onrender.com');
 
 // Create axios instance with default config
 const api = axios.create({

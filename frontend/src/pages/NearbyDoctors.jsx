@@ -7,6 +7,7 @@ import {
   CheckCircle, XCircle
 } from 'lucide-react';
 import ChatLayout from '../components/ChatLayout';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 const SPECIALTIES = [
   { id: 'all', label: 'All Doctors', icon: Stethoscope },
@@ -921,7 +922,7 @@ function ActionModal({ doctor, action, onClose }) {
   const API_URL =
     typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
       ? import.meta.env.VITE_API_URL
-      : 'http://localhost:8000';
+      : 'https://medai-healthcare-platform-y8lf.onrender.com';
 
   const TIME_SLOTS = ['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'];
 
@@ -1337,7 +1338,7 @@ export default function NearbyDoctors() {
       const demoParams = new URLSearchParams();
       demoParams.set('is_demo', 'true');
 
-      const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const BASE = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
       let apiDoctors = [];
       let demoDoctors = [];

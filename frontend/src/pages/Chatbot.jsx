@@ -27,7 +27,7 @@ import ChatLayout from '../components/ChatLayout';
 import { diagnosisAPI, chatAPI } from '../services/api';
 
 const API_URL =
-  import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'http://localhost:8000');
+  import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 // Start with empty conversation
 const INITIAL_MESSAGES = [];

@@ -3,6 +3,8 @@ import { Users, Activity, FileText, ShoppingCart, TrendingUp, AlertCircle } from
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/admin/stats', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }

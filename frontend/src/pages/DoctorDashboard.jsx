@@ -3,6 +3,8 @@ import { Users, FileText, Calendar, Stethoscope, ArrowRight } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 export default function DoctorDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ export default function DoctorDashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/doctor/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/doctor/dashboard`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }

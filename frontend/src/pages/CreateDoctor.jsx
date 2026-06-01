@@ -45,7 +45,7 @@ export default function CreateDoctor() {
       setLoading(true);
       
       // Call admin API to create doctor account
-      const response = await fetch('http://localhost:8000/api/admin/create-doctor', {
+      const response = await fetch('https://medai-healthcare-platform-y8lf.onrender.com/api/admin/create-doctor', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

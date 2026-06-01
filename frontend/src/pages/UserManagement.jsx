@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Search, UserCog, Trash2, Shield } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,8 +16,8 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       const url = filter === 'all' 
-        ? 'http://localhost:8000/api/admin/users'
-        : `http://localhost:8000/api/admin/users?role=${filter}`;
+        ? `${API_BASE_URL}/api/admin/users`
+        : `${API_BASE_URL}/api/admin/users?role=${filter}`;
       
       const response = await fetch(url, {
         headers: {
@@ -35,7 +37,7 @@ export default function UserManagement() {
 
   const updateUserRole = async (userId, newRole) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}/role`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,

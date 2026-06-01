@@ -99,6 +99,7 @@ function AppRoutes() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/success" element={<AuthSuccess />} />
+                <Route path="/auth/callback" element={<AuthSuccess />} />
 
                 {/* Patient Routes */}
                 <Route path="/chatbot" element={<ProtectedRoute useMainLayout={false}><Chatbot /></ProtectedRoute>} />

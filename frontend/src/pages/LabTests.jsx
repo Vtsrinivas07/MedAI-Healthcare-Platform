@@ -7,6 +7,8 @@ import {
 import { Link } from 'react-router-dom';
 import ChatLayout from '../components/ChatLayout';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 function PrescriptionTestsBanner() {
   const [ap, setAp] = useState(null);
   useEffect(() => {
@@ -95,7 +97,7 @@ export default function LabTests() {
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (search) params.append('search', search);
       
-      const response = await fetch(`http://localhost:8000/api/lab-tests/tests?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/api/lab-tests/tests?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -117,7 +119,7 @@ export default function LabTests() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      const response = await fetch('http://localhost:8000/api/lab-tests/bookings', {
+      const response = await fetch(`${API_BASE_URL}/api/lab-tests/bookings`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
         signal: controller.signal
       });
@@ -169,7 +171,7 @@ export default function LabTests() {
       formData.append('file', reportFile);
       formData.append('title', 'Lab Report');
       
-      const response = await fetch('http://localhost:8000/api/lab-tests/upload-report', {
+      const response = await fetch(`${API_BASE_URL}/api/lab-tests/upload-report`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -220,7 +222,7 @@ export default function LabTests() {
         status: 'pending'
       };
       
-      const response = await fetch('http://localhost:8000/api/lab-tests/bookings', {
+      const response = await fetch(`${API_BASE_URL}/api/lab-tests/bookings`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -238,7 +240,7 @@ export default function LabTests() {
           formData.append('booking_id', data.booking_id);
           formData.append('file', prescriptionFile);
           
-          await fetch('http://localhost:8000/api/lab-tests/upload-prescription', {
+          await fetch(`${API_BASE_URL}/api/lab-tests/upload-prescription`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`

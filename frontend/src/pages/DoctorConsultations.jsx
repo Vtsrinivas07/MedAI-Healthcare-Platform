@@ -4,7 +4,7 @@ import { Video, Phone, MessageSquare, Calendar, Clock, User, Loader2, RefreshCw,
 const API_URL =
   typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
     ? import.meta.env.VITE_API_URL
-    : 'http://localhost:8000';
+    : 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 export default function DoctorConsultations() {
   const [consultations, setConsultations] = useState([]);

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import ChatLayout from '../components/ChatLayout';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 const Orders = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -29,7 +31,7 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:8000/api/orders/', {
+      const response = await fetch(`${API_BASE_URL}/api/orders/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -3,6 +3,8 @@ import ChatLayout from '../components/ChatLayout';
 import { Link, useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, Bell, Package, ShoppingCart, MessageCircle, X, Plus, Pill, FileText, Sparkles } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 function PrescriptionBanner() {
   const [ap, setAp] = useState(null);
   const [applying, setApplying] = useState(false);
@@ -19,7 +21,7 @@ function PrescriptionBanner() {
     setApplying(true);
     try {
       const token = localStorage.getItem('authToken');
-      await fetch('http://localhost:8000/api/medicine/bulk-reminders', {
+      await fetch(`${API_BASE_URL}/api/medicine/bulk-reminders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ medicines: ap.medicines }),
@@ -451,7 +453,7 @@ function AddReminderModal({ onClose, onSuccess }) {
         times: formattedTimes
       };
 
-      const response = await fetch('http://localhost:8000/api/medicine/reminders', {
+      const response = await fetch(`${API_BASE_URL}/api/medicine/reminders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -654,7 +656,7 @@ export default function MedicineReminder() {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) return;
-      const res = await fetch('http://localhost:8000/api/medicine/reminders?active_only=true', {
+      const res = await fetch(`${API_BASE_URL}/api/medicine/reminders?active_only=true`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {

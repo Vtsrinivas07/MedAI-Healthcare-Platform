@@ -41,6 +41,8 @@ import {
 import { healthAPI } from '../services/api';
 import ChatLayout from '../components/ChatLayout';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 export default function HealthTracking() {
     const [showAddLog, setShowAddLog] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export default function HealthTracking() {
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
-        fetch('http://localhost:8000/api/health/logs', {
+        fetch(`${API_BASE_URL}/api/health/logs`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(r => r.ok ? r.json() : [])
@@ -127,7 +129,7 @@ export default function HealthTracking() {
             
             // Refresh the health logs
             const token = localStorage.getItem('authToken');
-            const response = await fetch('http://localhost:8000/api/health/logs', {
+            const response = await fetch(`${API_BASE_URL}/api/health/logs`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {

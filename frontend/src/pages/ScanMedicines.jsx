@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import ChatLayout from '../components/ChatLayout';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 const ScanMedicines = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -38,7 +40,7 @@ const ScanMedicines = () => {
       formData.append('scan_type', scanMode);
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:8000/api/medicine/scan', {
+      const response = await fetch(`${API_BASE_URL}/api/medicine/scan`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

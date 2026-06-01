@@ -27,6 +27,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import ChatLayout from '../components/ChatLayout';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 const Profile = () => {
   const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
@@ -53,7 +55,7 @@ const Profile = () => {
         setAvatarUrl(dataUrl);
         try {
           const token = localStorage.getItem('authToken');
-          const res = await fetch('http://localhost:8000/api/auth/profile', {
+          const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ profile_picture: dataUrl }),
@@ -88,9 +90,9 @@ const Profile = () => {
     if (!token) return;
     const headers = { 'Authorization': `Bearer ${token}` };
     Promise.all([
-      fetch('http://localhost:8000/api/orders/', { headers }).then(r => r.ok ? r.json() : null),
-      fetch('http://localhost:8000/api/lab-tests/bookings', { headers }).then(r => r.ok ? r.json() : null),
-      fetch('http://localhost:8000/api/health/logs', { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE_URL}/api/orders/`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE_URL}/api/lab-tests/bookings`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE_URL}/api/health/logs`, { headers }).then(r => r.ok ? r.json() : null),
     ]).then(([ordersData, labData, healthData]) => {
       const ordersCount = ordersData?.data?.length ?? ordersData?.orders?.length ?? 0;
       const labCount = labData?.data?.length ?? 0;
@@ -137,7 +139,7 @@ const Profile = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:8000/api/auth/profile', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

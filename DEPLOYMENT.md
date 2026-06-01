@@ -14,10 +14,60 @@ Steps:
 1. Push the repo to GitHub (if not already). Render will read `render.yaml` if you connect the repo.
 2. In Render, create a new Web Service and choose "Deploy from Git" → select the repo. Render will use the `render.yaml` and build the Docker image.
 3. In Render service settings, add environment variables (MONGODB_URI, JWT_SECRET_KEY, REDIS_URL, etc.) in the Environment tab.
+
+
+### Render Environment Variables
+
+Required:
+
+- `MONGODB_URI`
+- `JWT_SECRET_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `ALLOWED_ORIGINS`
+
+Recommended:
+
+- `REDIS_URL`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
+- `REFRESH_TOKEN_EXPIRE_DAYS`
+- `DEBUG`
+
+Optional, depending on features you use:
+
+- `AI_PROVIDER`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+- `HUGGINGFACE_API_KEY`
+- `HUGGINGFACE_MODEL`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
+- `SENDGRID_API_KEY`
+- `SENDGRID_FROM_EMAIL`
+- `GOOGLE_MAPS_API_KEY`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `AWS_S3_BUCKET`
+
+
+
+
+
+
+
+
+
+
+
+
 	 - Add `ALLOWED_ORIGINS` to allow the frontend origin(s), for example:
 		 `ALLOWED_ORIGINS=https://med-ai-healthcare-platform-33kkxmgh9-vtsrinivas07s-projects.vercel.app`
-	 - If your backend handles OAuth callbacks, set `GOOGLE_REDIRECT_URI` to your backend callback, for example:
-		 `GOOGLE_REDIRECT_URI=https://medai-healthcare-platform-y8lf.onrender.com/api/auth/google/callback`
 4. Optionally, use the following local commands to test the Docker image:
 
 ```bash
@@ -47,16 +97,27 @@ Steps:
 1. Create a new project on Vercel and connect the `frontend` folder in the repo (set Root Directory to `frontend`).
 2. Set Build Command: `npm run build` (or `yarn build`) and Output Directory: `dist`.
 3. Add environment variables in the Vercel project settings using the names in `.env.production.example` (prefix `VITE_` is required by Vite). The frontend reads `VITE_API_URL` for the backend base URL.
-	 - Example values for your project:
-		 - `VITE_API_URL=https://medai-healthcare-platform-y8lf.onrender.com`
-		 - `VITE_GOOGLE_CLIENT_ID=<your-google-client-id>`
-		 - `VITE_GOOGLE_REDIRECT_URI=https://med-ai-healthcare-platform-33kkxmgh9-vtsrinivas07s-projects.vercel.app/auth/callback`
+
+
+### Vercel Environment Variables
+
+Required:
+
+- `VITE_API_URL=https://medai-healthcare-platform-y8lf.onrender.com`
+- `VITE_GOOGLE_CLIENT_ID=<your-google-client-id>`
+
+Optional:
+
+- `VITE_GOOGLE_MAPS_API_KEY`
+
+Not needed for the current popup-based Google login flow:
+
+- `VITE_GOOGLE_REDIRECT_URI`
+
+4. Add the OAuth origin in Google Cloud Console to match your Vercel domain.
+	 - Authorized JavaScript origin: `https://med-ai-healthcare-platform.vercel.app`
+	 - If you later switch to a redirect-based flow, add `https://med-ai-healthcare-platform.vercel.app/auth/callback` as a redirect URI and keep the route alias in the frontend.
 	 - After setting envs, trigger a redeploy in Vercel so the build picks up the new values.
-4. Add the OAuth redirect URI in Google Cloud Console to match your Vercel domain (e.g., `https://your-vercel-domain.vercel.app/auth/callback`).
-	 - For your deployment, add these entries in Google Cloud Console (APIs & Services → Credentials → OAuth 2.0 Client ID):
-		 - Authorized JavaScript origin: `https://med-ai-healthcare-platform-33kkxmgh9-vtsrinivas07s-projects.vercel.app`
-		 - Authorized redirect URI (frontend): `https://med-ai-healthcare-platform-33kkxmgh9-vtsrinivas07s-projects.vercel.app/auth/callback`
-		 - If your backend handles OAuth callbacks, also add: `https://medai-healthcare-platform-y8lf.onrender.com/api/auth/google/callback`
 
 ## Notes
 - Do NOT commit real secrets to the repository. Use Render and Vercel secret managers. Rotate any keys that were exposed.

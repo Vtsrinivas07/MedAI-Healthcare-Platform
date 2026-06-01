@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, User, Bell, Clock, Loader2 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'http://localhost:8000');
+const API_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
 
 const EMPTY = {
   name: '',
@@ -37,7 +38,7 @@ export default function DoctorSettings() {
       try {
         const token = localStorage.getItem('authToken');
         if (!token) return;
-        const res = await fetch(`${API_URL}/api/auth/me`, {
+        const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
@@ -65,7 +66,7 @@ export default function DoctorSettings() {
     setSaving(true);
     try {
       const token = localStorage.getItem('authToken');
-      const res = await fetch(`${API_URL}/api/auth/profile`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

@@ -111,6 +111,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setAuthSession = (accessToken, nextUser) => {
+    if (!accessToken || !nextUser) {
+      return;
+    }
+
+    localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('user', JSON.stringify(nextUser));
+    setUser(nextUser);
+    setIsAuthenticated(true);
+  };
+
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
@@ -149,6 +160,7 @@ export const AuthProvider = ({ children }) => {
     login,
     loginWithOTP,
     loginWithGoogle,
+    setAuthSession,
     register,
     logout,
   };
