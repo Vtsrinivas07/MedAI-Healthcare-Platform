@@ -15,6 +15,8 @@ Steps:
 2. In Render, create a new Web Service and choose "Deploy from Git" → select the repo. Render will use the `render.yaml` and build the Docker image.
 3. In Render service settings, add environment variables (MONGODB_URI, JWT_SECRET_KEY, REDIS_URL, etc.) in the Environment tab.
 
+If Render locks the Root Directory, Build Command, or Start Command fields in the UI, do not fight the dashboard settings. Delete the existing service and recreate it from the repository blueprint so the updated `render.yaml` is applied.
+
 
 ### Render Environment Variables
 
