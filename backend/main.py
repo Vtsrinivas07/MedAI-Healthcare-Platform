@@ -95,11 +95,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add rate limiting middleware
-app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+# Import native exception handlers and exceptions
+from middleware.error_handler import global_exception_handler, validation_exception_handler, http_exception_handler
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# Add error handler middleware
-app.middleware("http")(error_handler_middleware)
+# Conditionally add rate limiting middleware only if Redis is configured/active
+disable_redis = os.getenv("DISABLE_REDIS", "false").strip().lower() in ("1", "true", "yes")
+redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+is_cloud = bool(os.getenv("RENDER") or os.getenv("VERCEL") or os.getenv("IS_CLOUD"))
+is_local_redis = redis_url and ("localhost" in redis_url or "127.0.0.1" in redis_url)
+
+if not disable_redis and not (is_cloud and is_local_redis):
+    app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+    print("[INFO] Rate limiting middleware added natively.", flush=True)
+else:
+    print("[INFO] Rate limiting middleware bypassed (Redis is disabled or unavailable).", flush=True)
+
+# Register native FastAPI exception handlers instead of using Starlette BaseHTTPMiddleware
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
