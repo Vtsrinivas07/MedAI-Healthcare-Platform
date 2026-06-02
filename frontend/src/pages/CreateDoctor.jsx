@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { UserPlus, Users, Mail, Phone, Lock, User } from 'lucide-react';
 import { adminAPI } from '../services/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+
 export default function CreateDoctor() {
   const [formData, setFormData] = useState({
     name: '',
@@ -45,7 +47,7 @@ export default function CreateDoctor() {
       setLoading(true);
       
       // Call admin API to create doctor account
-      const response = await fetch('https://medai-healthcare-platform-y8lf.onrender.com/api/admin/create-doctor', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/create-doctor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,6 +58,9 @@ export default function CreateDoctor() {
           email: formData.email,
           password: formData.password,
           phone: formData.phone || null,
+          specialization: formData.specialization || null,
+          experience: formData.experience ? parseInt(formData.experience) : null,
+          consultationFee: formData.consultationFee ? parseFloat(formData.consultationFee) : null,
         }),
       });
 

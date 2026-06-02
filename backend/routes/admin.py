@@ -15,6 +15,9 @@ class CreateDoctorRequest(BaseModel):
     email: EmailStr
     password: str
     phone: str = None
+    specialization: str = None
+    experience: int = None
+    consultationFee: float = None
 
 @router.get("/stats")
 async def get_admin_stats(
@@ -187,6 +190,9 @@ async def create_doctor_account(
             "password": hashed_password.decode('utf-8'),
             "role": "doctor",
             "phone": doctor_data.phone,
+            "specialty": doctor_data.specialization,
+            "experience_years": doctor_data.experience,
+            "consultation_fee": doctor_data.consultationFee,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }

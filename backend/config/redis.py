@@ -12,7 +12,34 @@ class RedisClient:
         self.client: Optional[redis.Redis] = None
     
     async def connect(self):
-        """Connect to Redis — silently disabled if Redis is unavailable."""
+        """Connect to Redis — silently disabled if Redis is unavailable.
+
+        Automatically skips the connection attempt when:
+        - DISABLE_REDIS env var is set to true/1/yes
+        - Running on a cloud platform (Render/Vercel) with a localhost Redis URL
+          (localhost Redis doesn't exist on these platforms, so the 2-second
+          socket timeout would block every cold start for nothing)
+        """
+        # Check if Redis is explicitly disabled
+        if os.getenv("DISABLE_REDIS", "false").strip().lower() in ("1", "true", "yes"):
+            self.client = None
+            print("[INFO] Redis disabled via DISABLE_REDIS env var", flush=True)
+            return None
+
+        # Auto-detect cloud environment with localhost Redis (guaranteed to fail)
+        is_cloud = bool(os.getenv("RENDER") or os.getenv("VERCEL") or os.getenv("IS_CLOUD"))
+        is_local_redis = self.redis_url and (
+            "localhost" in self.redis_url or "127.0.0.1" in self.redis_url
+        )
+        if is_cloud and is_local_redis:
+            self.client = None
+            print(
+                "[INFO] Redis skipped — localhost URL in cloud environment "
+                "(set a managed REDIS_URL or DISABLE_REDIS=true to silence this)",
+                flush=True,
+            )
+            return None
+
         try:
             client = await redis.from_url(
                 self.redis_url,

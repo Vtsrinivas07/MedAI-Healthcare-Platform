@@ -259,7 +259,7 @@ export const adminAPI = {
   },
 
   updateUserRole: async (userId, role) => {
-    const response = await api.put(`/api/admin/users/${userId}/role`, { role });
+    const response = await api.patch(`/api/admin/users/${userId}/role`, { role });
     return response.data;
   },
 
@@ -275,7 +275,7 @@ export const adminAPI = {
   },
 
   updateBookingStatus: async (bookingId, status) => {
-    const response = await api.put(`/api/admin/bookings/${bookingId}/status`, { status });
+    const response = await api.patch(`/api/lab-tests/bookings/${bookingId}/status`, { status });
     return response.data;
   },
 };
@@ -284,7 +284,7 @@ export const adminAPI = {
 export const doctorDashboardAPI = {
   // Get doctor dashboard stats
   getStats: async () => {
-    const response = await api.get('/api/doctor/stats');
+    const response = await api.get('/api/doctor/dashboard');
     return response.data;
   },
 
@@ -329,7 +329,7 @@ export const prescriptionDashboardAPI = {
 
   // Update prescription status
   updatePrescriptionStatus: async (prescriptionId, status) => {
-    const response = await api.put(`/api/prescriptions/${prescriptionId}/status`, { status });
+    const response = await api.patch(`/api/prescriptions/${prescriptionId}/status`, { status });
     return response.data;
   },
 };
