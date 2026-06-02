@@ -12,10 +12,6 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 logging.getLogger("transformers").setLevel(logging.ERROR)
 logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 
-from langchain_community.vectorstores import Chroma, FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from typing import List
 import asyncio
 
@@ -38,6 +34,7 @@ class RAGService:
             return
         self._embeddings_load_attempted = True
         try:
+            from langchain_huggingface import HuggingFaceEmbeddings
             with contextlib.redirect_stdout(io.StringIO()):
                 self.embeddings = HuggingFaceEmbeddings(
                     model_name="all-MiniLM-L6-v2",
@@ -69,6 +66,7 @@ class RAGService:
             return
 
         try:
+            from langchain_community.vectorstores import Chroma, FAISS
             # Try to load existing Chroma database
             if os.path.exists(settings.CHROMA_PERSIST_DIR):
                 self.chroma_db = Chroma(
@@ -100,6 +98,10 @@ class RAGService:
             raise ValueError("Local embeddings could not be loaded. Cannot create vector index.")
         
         # Load documents
+        from langchain_community.document_loaders import DirectoryLoader, TextLoader
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        from langchain_community.vectorstores import Chroma, FAISS
+
         loader = DirectoryLoader(
             documents_path,
             glob="**/*.txt",
@@ -191,6 +193,8 @@ class RAGService:
         """Add a single document to the vector databases"""
         if not self.initialized:
             await self.initialize()
+        
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
         
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
