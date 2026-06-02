@@ -78,11 +78,25 @@ class AIService:
                     "If it is a lab report, prescription, discharge letter, or form, keep labels and values clear. "
                     "If there is almost no text, briefly describe what is shown in 2-4 sentences."
                 )
-                response = await asyncio.to_thread(model.generate_content, [prompt, img])
+                try:
+                    from google.generativeai.types import RequestOptions
+                    response = await asyncio.to_thread(
+                        model.generate_content,
+                        [prompt, img],
+                        request_options=RequestOptions(timeout=15),
+                    )
+                except TypeError:
+                    response = await asyncio.to_thread(model.generate_content, [prompt, img])
                 text = (getattr(response, "text", None) or "").strip()
                 return text or "[No text returned from vision model]"
             except Exception as exc:
                 logger.exception("Gemini image extraction failed: %s", exc)
+                error_str = str(exc).lower()
+                if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
+                    return (
+                        "[Image text extraction failed: Quota Exceeded (429). "
+                        "The Gemini API free tier daily limit has been reached. Please wait or check your API key.]"
+                    )
                 return f"[Image text extraction failed: {str(exc)[:200]}]"
 
         return ""
@@ -117,7 +131,7 @@ class AIService:
                         model.generate_content,
                         [prompt, img],
                         generation_config=gc,
-                        request_options=RequestOptions(timeout=240),
+                        request_options=RequestOptions(timeout=15),
                     )
                 except TypeError:
                     response = await asyncio.to_thread(
@@ -126,6 +140,24 @@ class AIService:
                 return (getattr(response, "text", None) or "").strip()
             except Exception as exc:
                 logger.exception("describe_image_basic failed: %s", exc)
+                error_str = str(exc).lower()
+                if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
+                    return (
+                        "[Basic mode: vision call failed: Quota Exceeded (429). "
+                        "The Gemini API free tier daily limit has been reached. "
+                        "Please update GEMINI_API_KEY in the environment or try again tomorrow.]"
+                    )
+                elif "api key" in error_str or "unauthorized" in error_str or "403" in error_str:
+                    return (
+                        "[Basic mode: vision call failed: Invalid API Key. "
+                        "The Gemini API key is incorrect or expired. "
+                        "Please verify your GEMINI_API_KEY in your environment variables.]"
+                    )
+                elif "timeout" in error_str:
+                    return (
+                        "[Basic mode: vision call failed: Request Timeout. "
+                        "The request to Gemini API timed out after 15 seconds. Please try again.]"
+                    )
                 return f"[Basic mode: vision call failed: {str(exc)[:200]}]"
 
         return "[Basic mode needs Gemini. Set AI_PROVIDER=gemini and GEMINI_API_KEY in backend/.env]"

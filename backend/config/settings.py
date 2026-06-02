@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    DISABLE_REDIS: str = "false"
     
     # JWT Authentication
     JWT_SECRET_KEY: str
@@ -69,5 +70,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 settings = Settings()

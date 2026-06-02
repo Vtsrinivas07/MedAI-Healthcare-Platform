@@ -123,12 +123,22 @@ export const chatAPI = {
 
   // Send message
   sendMessage: async (message, sessionId = null, useRag = false) => {
-    const response = await api.post('/api/chat/', {
-      message: message,
-      session_id: sessionId,
-      use_rag: useRag
-    });
-    return response.data;
+    try {
+      const response = await api.post('/api/chat/', {
+        message: message,
+        session_id: sessionId,
+        use_rag: useRag
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
+    }
   },
 
   // Generate health recommendations
@@ -363,16 +373,26 @@ export const analysisAPI = {
 // Unified diagnosis APIs (decision layer + RAG + doctor mapping)
 export const diagnosisAPI = {
   completeDiagnosis: async ({ symptoms, imageFile, modality = 'skin', sessionId = null }) => {
-    const formData = new FormData();
-    if (symptoms) formData.append('symptoms', symptoms);
-    formData.append('modality', modality);
-    if (imageFile) formData.append('image', imageFile);
-    if (sessionId && sessionId !== 'null') formData.append('session_id', sessionId);
+    try {
+      const formData = new FormData();
+      if (symptoms) formData.append('symptoms', symptoms);
+      formData.append('modality', modality);
+      if (imageFile) formData.append('image', imageFile);
+      if (sessionId && sessionId !== 'null') formData.append('session_id', sessionId);
 
-    const response = await api.post('/api/diagnosis/complete', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+      const response = await api.post('/api/diagnosis/complete', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
+    }
   },
 };
 
