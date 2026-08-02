@@ -71,7 +71,9 @@ class AIService:
                 from PIL import Image
 
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                model = genai.GenerativeModel(self.model)
+                # Always use the Gemini model for vision, not self.model (which may be groq/llama)
+                vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
+                model = genai.GenerativeModel(vision_model_name)
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
@@ -116,7 +118,9 @@ class AIService:
                 from PIL import Image
 
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                model = genai.GenerativeModel(self.model)
+                # Always use the Gemini model for vision, not self.model (which may be groq/llama)
+                vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
+                model = genai.GenerativeModel(vision_model_name)
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
