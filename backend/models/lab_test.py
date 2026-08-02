@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
@@ -24,18 +24,19 @@ class LabTest(BaseModel):
 
 class LabTestBooking(BaseModel):
     id: Optional[str] = Field(default=None, alias='_id')
-    user_id: str
-    test_ids: List[str]
-    test_names: List[str]
-    total_price: float
-    booking_date: datetime = Field(default_factory=datetime.utcnow)
-    scheduled_date: datetime
-    scheduled_time: str
-    collection_type: str = "home"  # home, lab
-    address: Optional[str] = None
-    contact_number: str
-    status: str = "pending"  # pending, confirmed, sample_collected, processing, completed, cancelled
-    payment_status: str = "pending"  # pending, paid, failed
+    user_id: Optional[str] = None
+    test_ids: List[str] = Field(default_factory=list)
+    test_names: List[str] = Field(default_factory=list)
+    total_price: float = 0.0
+    booking_date: Optional[Any] = Field(default_factory=datetime.utcnow)
+    scheduled_date: Optional[Any] = None
+    scheduled_time: Optional[str] = "09:00"
+    collection_type: Optional[str] = "home"
+    address: Optional[str] = "To be confirmed"
+    contact_number: Optional[str] = "Not provided"
+    payment_method: Optional[str] = "cod"
+    status: Optional[str] = "pending"
+    payment_status: Optional[str] = "pending"
     
     class Config:
         populate_by_name = True

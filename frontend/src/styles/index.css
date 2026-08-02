@@ -346,77 +346,246 @@
 
 /* ── Generic: dark-first text → readable dark in light mode ── */
 html:not(.dark) .text-white   { color: #111827; }
+html:not(.dark) .text-gray-100 { color: #1f2937; }
 html:not(.dark) .text-gray-200 { color: #374151; }
 html:not(.dark) .text-gray-300 { color: #6b7280; }
+html:not(.dark) .text-gray-400 { color: #6b7280; }
 
-/* ── Exceptions: solid-colored buttons/badges keep white text ──
-   Two-class selectors specificity (0,3,1) beats generic (0,2,1). */
-html:not(.dark) .bg-primary.text-white,
-html:not(.dark) .bg-green-600.text-white,
-html:not(.dark) .bg-green-700.text-white,
-html:not(.dark) .bg-blue-600.text-white,
-html:not(.dark) .bg-blue-700.text-white,
-html:not(.dark) .bg-red-500.text-white,
-html:not(.dark) .bg-red-600.text-white,
-html:not(.dark) .bg-orange-600.text-white,
-html:not(.dark) .bg-orange-700.text-white,
-html:not(.dark) .bg-indigo-500.text-white,
-html:not(.dark) .bg-indigo-600.text-white,
-html:not(.dark) .bg-purple-600.text-white,
-html:not(.dark) .bg-purple-700.text-white,
-html:not(.dark) .bg-emerald-600.text-white,
-html:not(.dark) .bg-teal-600.text-white { color: white; }
+/* ── Exceptions: solid-colored buttons/badges/icons keep white text ──
+   Two-class selectors have higher specificity (0,2,0) to override the generic above */
+html:not(.dark) [class*="bg-primary"] .text-white,
+html:not(.dark) [class*="bg-blue-"] .text-white,
+html:not(.dark) [class*="bg-green-"] .text-white,
+html:not(.dark) [class*="bg-red-"] .text-white,
+html:not(.dark) [class*="bg-orange-"] .text-white,
+html:not(.dark) [class*="bg-purple-"] .text-white,
+html:not(.dark) [class*="bg-indigo-"] .text-white,
+html:not(.dark) [class*="bg-teal-"] .text-white,
+html:not(.dark) [class*="bg-emerald-"] .text-white,
+html:not(.dark) [class*="bg-pink-"] .text-white,
+html:not(.dark) [class*="bg-yellow-"] .text-white,
+html:not(.dark) [class*="bg-cyan-"] .text-white { color: white !important; }
 
-/* ── Child elements inside those same solid containers ── */
-html:not(.dark) .bg-primary .text-white,
-html:not(.dark) .bg-green-600 .text-white,
-html:not(.dark) .bg-green-700 .text-white,
-html:not(.dark) .bg-blue-600 .text-white,
-html:not(.dark) .bg-blue-700 .text-white,
-html:not(.dark) .bg-red-500  .text-white,
-html:not(.dark) .bg-red-600  .text-white,
-html:not(.dark) .bg-orange-600 .text-white,
-html:not(.dark) .bg-orange-700 .text-white,
-html:not(.dark) .bg-indigo-500 .text-white,
-html:not(.dark) .bg-indigo-600 .text-white,
-html:not(.dark) .bg-purple-600 .text-white,
-html:not(.dark) .bg-purple-700 .text-white,
-html:not(.dark) .bg-emerald-600 .text-white,
-html:not(.dark) .bg-teal-600 .text-white { color: white; }
+/* Self: element has both a bg AND text-white */
+html:not(.dark) [class*="bg-primary"][class*="text-white"],
+html:not(.dark) [class*="bg-blue-"][class*="text-white"],
+html:not(.dark) [class*="bg-green-"][class*="text-white"],
+html:not(.dark) [class*="bg-red-"][class*="text-white"],
+html:not(.dark) [class*="bg-orange-"][class*="text-white"],
+html:not(.dark) [class*="bg-purple-"][class*="text-white"],
+html:not(.dark) [class*="bg-indigo-"][class*="text-white"],
+html:not(.dark) [class*="bg-teal-"][class*="text-white"],
+html:not(.dark) [class*="bg-emerald-"][class*="text-white"],
+html:not(.dark) [class*="bg-pink-"][class*="text-white"],
+html:not(.dark) [class*="bg-cyan-"][class*="text-white"] { color: white !important; }
 
-/* ── Fix form inputs ── */
-html:not(.dark) input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+/* Gradient containers always keep white text */
+html:not(.dark) [class*="from-primary"],
+html:not(.dark) [class*="from-blue-6"],
+html:not(.dark) [class*="from-blue-7"],
+html:not(.dark) [class*="from-green-6"],
+html:not(.dark) [class*="from-purple-6"],
+html:not(.dark) [class*="from-orange-6"],
+html:not(.dark) [class*="from-red-6"],
+html:not(.dark) [class*="from-indigo-5"],
+html:not(.dark) [class*="from-indigo-6"] { color: white !important; }
+
+html:not(.dark) [class*="from-primary"] *,
+html:not(.dark) [class*="from-blue-6"] *,
+html:not(.dark) [class*="from-blue-7"] *,
+html:not(.dark) [class*="from-green-6"] *,
+html:not(.dark) [class*="from-purple-6"] *,
+html:not(.dark) [class*="from-orange-6"] *,
+html:not(.dark) [class*="from-red-6"] *,
+html:not(.dark) [class*="from-indigo-5"] *,
+html:not(.dark) [class*="from-indigo-6"] * { color: white !important; }
+
+/* ── Fix hardcoded dark card hovers ── */
+html:not(.dark) .hover\:bg-gray-800:hover  { background-color: #f3f4f6 !important; }
+html:not(.dark) .hover\:bg-gray-700:hover  { background-color: #e5e7eb !important; }
+html:not(.dark) .hover\:bg-gray-600:hover  { background-color: #d1d5db !important; }
+
+/* ── Fix hardcoded dark backgrounds ── */
+html:not(.dark) .bg-gray-800         { background-color: #f3f4f6 !important; }
+html:not(.dark) .bg-gray-800\/50     { background-color: rgba(243,244,246,0.8) !important; }
+html:not(.dark) .bg-gray-900         { background-color: #f9fafb !important; }
+html:not(.dark) .bg-gray-900\/80     { background-color: rgba(249,250,251,0.9) !important; }
+
+/* ── Fix hardcoded dark borders ── */
+html:not(.dark) .border-gray-700  { border-color: #d1d5db !important; }
+html:not(.dark) .border-gray-800  { border-color: #e5e7eb !important; }
+
+/* ── Fix form inputs for both hardcoded and css-var versions ── */
+html:not(.dark) input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 html:not(.dark) textarea,
-html:not(.dark) select { color: #111827; }
+html:not(.dark) select {
+  color: #111827;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
 
 /* ── Micro-block: colored badge/chip light-mode fixes ──
-   Dark-opacity tints (bg-*-900/20) look faint on white.
-   text-*-400 colors are too light to read on white.       */
+   Dark-opacity tints (bg-*-900/20) look faint on white. */
 
 /* Badge backgrounds → proper light tints */
-html:not(.dark) .bg-yellow-900\/20  { background-color: #fef9c3; }
-html:not(.dark) .bg-orange-900\/20  { background-color: #fff7ed; }
-html:not(.dark) .bg-red-900\/20     { background-color: #fef2f2; }
-html:not(.dark) .bg-green-900\/20   { background-color: #f0fdf4; }
-html:not(.dark) .bg-blue-900\/20    { background-color: #eff6ff; }
-html:not(.dark) .bg-purple-900\/20  { background-color: #faf5ff; }
-html:not(.dark) .bg-cyan-900\/20    { background-color: #ecfeff; }
+html:not(.dark) .bg-yellow-500\/20  { background-color: #fef9c3 !important; }
+html:not(.dark) .bg-yellow-900\/20  { background-color: #fef9c3 !important; }
+html:not(.dark) .bg-orange-500\/20  { background-color: #fff7ed !important; }
+html:not(.dark) .bg-orange-900\/20  { background-color: #fff7ed !important; }
+html:not(.dark) .bg-red-500\/20     { background-color: #fef2f2 !important; }
+html:not(.dark) .bg-red-900\/20     { background-color: #fef2f2 !important; }
+html:not(.dark) .bg-green-500\/20   { background-color: #f0fdf4 !important; }
+html:not(.dark) .bg-green-900\/20   { background-color: #f0fdf4 !important; }
+html:not(.dark) .bg-blue-500\/20    { background-color: #eff6ff !important; }
+html:not(.dark) .bg-blue-900\/20    { background-color: #eff6ff !important; }
+html:not(.dark) .bg-blue-900\/30    { background-color: #dbeafe !important; }
+html:not(.dark) .bg-blue-800\/50    { background-color: #dbeafe !important; }
+html:not(.dark) .bg-purple-500\/20  { background-color: #faf5ff !important; }
+html:not(.dark) .bg-purple-900\/20  { background-color: #faf5ff !important; }
+html:not(.dark) .bg-purple-900\/50  { background-color: #ede9fe !important; }
+html:not(.dark) .bg-purple-800\/50  { background-color: #ede9fe !important; }
+html:not(.dark) .bg-cyan-500\/20    { background-color: #ecfeff !important; }
+html:not(.dark) .bg-cyan-900\/20    { background-color: #ecfeff !important; }
+html:not(.dark) .bg-green-500\/10   { background-color: #f0fdf4 !important; }
+html:not(.dark) .bg-primary\/10     { background-color: #eff6ff !important; }
+html:not(.dark) .bg-primary\/20     { background-color: #dbeafe !important; }
+html:not(.dark) .bg-green-900\/30   { background-color: #dcfce7 !important; }
+html:not(.dark) .bg-yellow-900\/30  { background-color: #fef9c3 !important; }
+html:not(.dark) .bg-green-900\/50   { background-color: #bbf7d0 !important; }
+html:not(.dark) .bg-orange-800\/50  { background-color: #fed7aa !important; }
 
 /* Badge borders → lighter shades */
-html:not(.dark) .border-yellow-800  { border-color: #fde68a; }
-html:not(.dark) .border-orange-800  { border-color: #fed7aa; }
-html:not(.dark) .border-red-800     { border-color: #fecaca; }
-html:not(.dark) .border-green-800   { border-color: #bbf7d0; }
-html:not(.dark) .border-blue-800    { border-color: #bfdbfe; }
-html:not(.dark) .border-purple-800  { border-color: #e9d5ff; }
+html:not(.dark) .border-yellow-500\/30  { border-color: #fde68a !important; }
+html:not(.dark) .border-yellow-800      { border-color: #fde68a !important; }
+html:not(.dark) .border-orange-800      { border-color: #fed7aa !important; }
+html:not(.dark) .border-orange-500\/30  { border-color: #fed7aa !important; }
+html:not(.dark) .border-red-800         { border-color: #fecaca !important; }
+html:not(.dark) .border-red-500\/50     { border-color: #fca5a5 !important; }
+html:not(.dark) .border-green-800       { border-color: #bbf7d0 !important; }
+html:not(.dark) .border-green-500\/50   { border-color: #86efac !important; }
+html:not(.dark) .border-blue-800        { border-color: #bfdbfe !important; }
+html:not(.dark) .border-blue-700\/50    { border-color: #bfdbfe !important; }
+html:not(.dark) .border-purple-800      { border-color: #e9d5ff !important; }
+html:not(.dark) .border-purple-700\/50  { border-color: #e9d5ff !important; }
+html:not(.dark) .border-primary\/30     { border-color: #93c5fd !important; }
 
-/* Badge text → darker tone for readability on light bg */
-html:not(.dark) .text-yellow-400    { color: #b45309; }
-html:not(.dark) .text-orange-400    { color: #c2410c; }
-html:not(.dark) .text-red-400       { color: #b91c1c; }
-html:not(.dark) .text-green-400     { color: #166534; }
-html:not(.dark) .text-blue-400      { color: #1d4ed8; }
-html:not(.dark) .text-purple-400    { color: #6d28d9; }
-html:not(.dark) .text-indigo-400    { color: #4338ca; }
-html:not(.dark) .text-cyan-400      { color: #0e7490; }
-html:not(.dark) .text-pink-400      { color: #be185d; }
+/* Badge/icon text → darker tone for readability on light bg */
+html:not(.dark) .text-yellow-300    { color: #92400e !important; }
+html:not(.dark) .text-yellow-400    { color: #b45309 !important; }
+html:not(.dark) .text-orange-300    { color: #9a3412 !important; }
+html:not(.dark) .text-orange-400    { color: #c2410c !important; }
+html:not(.dark) .text-red-300       { color: #991b1b !important; }
+html:not(.dark) .text-red-400       { color: #b91c1c !important; }
+html:not(.dark) .text-green-300     { color: #14532d !important; }
+html:not(.dark) .text-green-400     { color: #166534 !important; }
+html:not(.dark) .text-blue-300      { color: #1e40af !important; }
+html:not(.dark) .text-blue-400      { color: #1d4ed8 !important; }
+html:not(.dark) .text-purple-300    { color: #5b21b6 !important; }
+html:not(.dark) .text-purple-400    { color: #6d28d9 !important; }
+html:not(.dark) .text-indigo-300    { color: #3730a3 !important; }
+html:not(.dark) .text-indigo-400    { color: #4338ca !important; }
+html:not(.dark) .text-cyan-300      { color: #0e7490 !important; }
+html:not(.dark) .text-cyan-400      { color: #0e7490 !important; }
+html:not(.dark) .text-pink-300      { color: #9d174d !important; }
+html:not(.dark) .text-pink-400      { color: #be185d !important; }
+html:not(.dark) .text-emerald-300   { color: #064e3b !important; }
+html:not(.dark) .text-gray-500      { color: #6b7280 !important; }
+
+/* ── Fix timeline/connector lines in light mode ── */
+html:not(.dark) .bg-gray-700 { background-color: #e5e7eb !important; }
+
+/* ── Chatbot & pages that use bg-sidebar tokens for content panels ──
+   The sidebar CSS-var turns white in light mode, so text using text-muted
+   is fine, but any bare text-white becomes unreadable. The global rule above
+   handles that. For additional chatbot-specific dark panels: */
+html:not(.dark) .bg-sidebar\/95 { background-color: rgba(255,255,255,0.97) !important; }
+
+/* ── Modal overlays ── */
+html:not(.dark) .bg-gray-900.border-gray-700,
+html:not(.dark) .bg-gray-900.rounded-2xl { background-color: #ffffff !important; border-color: #e5e7eb !important; }
+
+/* ── FAQ / expandable sections ── */
+html:not(.dark) .bg-gray-800\/50 button:hover { background-color: #f3f4f6 !important; }
+
+/* ── Scrollbar in light mode ── */
+html:not(.dark) .scrollbar-thin::-webkit-scrollbar-track { background: #f1f5f9; border-color: #e2e8f0; }
+html:not(.dark) .scrollbar-thin::-webkit-scrollbar-thumb { background: #94a3b8; border-color: #cbd5e1; }
+
+/* =====================================================
+   CHATBOT — light mode panel text fixes
+   Chatbot sidebar panels use bg-sidebar (CSS var = white in light)
+   and all inner text uses bare text-white / text-gray-100.
+   These overrides make chatbot readable in both themes.
+   ===================================================== */
+
+/* Chatbot header bar */
+html:not(.dark) header.bg-sidebar\/95 { background-color: rgba(255,255,255,0.97) !important; }
+html:not(.dark) header.bg-sidebar\/95 .text-white,
+html:not(.dark) header.bg-sidebar\/95 h2,
+html:not(.dark) header.bg-sidebar\/95 span { color: #111827 !important; }
+
+/* ConversationsSidebar */
+html:not(.dark) aside.bg-sidebar h3 { color: #111827 !important; }
+html:not(.dark) aside.bg-sidebar p.text-white { color: #111827 !important; }
+
+/* AI message bubble — bg-sidebar-hover = light gray in light mode, text fine */
+html:not(.dark) .rounded-2xl.bg-sidebar-hover { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; }
+html:not(.dark) .rounded-2xl.bg-sidebar-hover .text-white,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover h4,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover p,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover li,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover ul { color: #1e293b !important; }
+
+/* Care plan inner cards (bg-sidebar inside bg-sidebar-hover) */
+html:not(.dark) .rounded-2xl.bg-sidebar-hover .bg-sidebar { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+html:not(.dark) .rounded-2xl.bg-sidebar-hover .bg-sidebar .text-white,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover .bg-sidebar p,
+html:not(.dark) .rounded-2xl.bg-sidebar-hover .bg-sidebar li { color: #1e293b !important; }
+
+/* text-gray-100 inside chatbot panels */
+html:not(.dark) .text-gray-100 { color: #1f2937 !important; }
+
+/* Action status bar */
+html:not(.dark) .text-cyan-400 { color: #0e7490 !important; }
+
+/* Dropdown menus in chatbot header */
+html:not(.dark) .absolute .bg-sidebar { background-color: #ffffff !important; }
+html:not(.dark) .absolute .bg-sidebar .text-white { color: #111827 !important; }
+html:not(.dark) .absolute .bg-sidebar .hover\:bg-sidebar-hover:hover { background-color: #f1f5f9 !important; }
+
+/* =====================================================
+   PHARMACY & LAB TESTS — checkout/booking modal inputs
+   ===================================================== */
+html:not(.dark) .bg-sidebar-hover input,
+html:not(.dark) .bg-sidebar-hover textarea,
+html:not(.dark) .bg-sidebar-hover select {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+
+/* =====================================================
+   HEALTH TRACKING page — sticky header uses bg-sidebar
+   ===================================================== */
+html:not(.dark) .sticky.bg-sidebar { background-color: #ffffff !important; }
+html:not(.dark) .sticky.bg-sidebar h1,
+html:not(.dark) .sticky.bg-sidebar h2,
+html:not(.dark) .sticky.bg-sidebar p { color: #111827 !important; }
+
+/* =====================================================
+   ORDERS / PROFILE — card-dark hover states
+   ===================================================== */
+html:not(.dark) .bg-card-dark { background-color: #ffffff !important; }
+html:not(.dark) .bg-card-dark .text-white,
+html:not(.dark) .bg-card-dark h1,
+html:not(.dark) .bg-card-dark h2,
+html:not(.dark) .bg-card-dark h3,
+html:not(.dark) .bg-card-dark p { color: #111827 !important; }
+html:not(.dark) .bg-card-dark .text-gray-400 { color: #6b7280 !important; }
+html:not(.dark) .bg-card-dark .hover\:bg-gray-800:hover { background-color: #f3f4f6 !important; }
+
+/* =====================================================
+   SIDEBAR-HOVER token in light mode
+   ===================================================== */
+html:not(.dark) .bg-sidebar-hover { background-color: #f1f5f9 !important; }
+html:not(.dark) .hover\:bg-sidebar-hover:hover { background-color: #e2e8f0 !important; }

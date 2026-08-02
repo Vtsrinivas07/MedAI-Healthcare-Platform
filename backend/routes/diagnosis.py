@@ -362,6 +362,7 @@ async def complete_diagnosis(
                 "specialty": doctor_mapping.get("specialty", "General Physician"),
             },
             "lab_tests": tests[:5],
+            "lab_tests_required": bool(tests and doctor_mapping.get("urgency") in ("urgent", "soon")),
             "pharmacy_medicines": (treatment.get("medications") or [])[:6],
             "medicine_reminders": reminder_suggestions,
             "health_tracking": {
@@ -375,16 +376,32 @@ async def complete_diagnosis(
         # ── Save to chat_sessions so it appears in Chat History ──────────────
         user_id = str(current_user["_id"])
         disease_name = result.get("prediction", {}).get("disease", "Diagnosis")
-        confidence_pct = round(float(result.get("prediction", {}).get("confidence", 0.0)) * 100)
         user_msg_content = symptoms or (f"[Medical image — {detected_modality}]" if image_data else "Diagnosis request")
         assistant_msg_content = (
-            f"**{disease_name}** detected ({confidence_pct}% confidence).\n\n"
+            f"**{disease_name}** detected.\n\n"
             + (result.get("rag_llm_output") or "")
         )
+        normalized_diagnosis_data = {
+            "disease": disease_name,
+            "confidence": result.get("prediction", {}).get("confidence", 0.0),
+            "modality": detected_modality if image_data else "text",
+            "doctor": doctor_mapping,
+            "treatment": treatment,
+            "tests": tests,
+            "explanation": result.get("rag_llm_output", ""),
+            "disclaimer": result.get("disclaimer", ""),
+            "carePlan": care_plan,
+        }
 
         now = datetime.utcnow()
         user_chat_msg = {"role": "user", "content": user_msg_content, "timestamp": now}
-        assistant_chat_msg = {"role": "assistant", "content": assistant_msg_content, "timestamp": now}
+        assistant_chat_msg = {
+            "role": "assistant",
+            "content": assistant_msg_content,
+            "variant": "diagnosis",
+            "diagnosis": normalized_diagnosis_data,
+            "timestamp": now,
+        }
 
         chat_session = None
         if session_id and session_id != "null":
@@ -417,6 +434,7 @@ async def complete_diagnosis(
         # ─────────────────────────────────────────────────────────────────────
 
         # Health log
+        confidence_pct = round(result.get("prediction", {}).get("confidence", 0.0) * 100)
         health_log = {
             "user_id": user_id,
             "date": now,

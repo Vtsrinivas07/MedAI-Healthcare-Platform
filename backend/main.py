@@ -80,7 +80,7 @@ app = FastAPI(
     description="AI-powered healthcare platform with medical assistance",
     version="2.0.0",
     lifespan=lifespan,
-    redirect_slashes=False,
+    redirect_slashes=True,
 )
 
 # Allow configuring CORS origins via ALLOWED_ORIGINS env var (comma-separated). Defaults to common localhost ports.

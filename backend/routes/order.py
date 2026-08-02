@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from typing import List, Optional
 from datetime import datetime
 from config.database import get_database
@@ -18,20 +18,28 @@ def generate_order_number():
 
 @router.post("/")
 async def create_order(
-    order: Order,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     db = Depends(get_database)
 ):
     """Create a new order"""
     try:
+        try:
+            order_dict = await request.json()
+        except Exception:
+            order_dict = {}
+        if not isinstance(order_dict, dict):
+            order_dict = {}
+
         user_id = str(current_user["_id"])
         
         # Generate order number
         order_number = generate_order_number()
         
-        order_dict = order.dict(by_alias=True, exclude={"id"})
         order_dict["user_id"] = user_id
         order_dict["order_number"] = order_number
+        order_dict["status"] = order_dict.get("status", "pending")
+        order_dict["payment_status"] = order_dict.get("payment_status", "pending")
         order_dict["created_at"] = datetime.utcnow()
         order_dict["updated_at"] = datetime.utcnow()
         
@@ -44,6 +52,7 @@ async def create_order(
             "order_number": order_number
         }
     except Exception as e:
+        print(f"[ERROR] Error creating order: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating order: {str(e)}"

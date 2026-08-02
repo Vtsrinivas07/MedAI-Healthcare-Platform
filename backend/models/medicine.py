@@ -22,13 +22,16 @@ class MedicineReminder(BaseModel):
         json_encoders = {ObjectId: str, time: lambda v: v.isoformat()}
 
 class MedicineReminderCreate(BaseModel):
-    medicine_name: str
-    dosage: str
-    frequency: str
-    times: List[str]  # Time strings like "08:00", "20:00"
-    start_date: datetime
+    medicine_name: Optional[str] = Field(default=None, alias="name")
+    dosage: Optional[str] = "As prescribed"
+    frequency: Optional[str] = "twice_daily"
+    times: Optional[List[str]] = Field(default_factory=lambda: ["08:00", "20:00"])
+    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
     end_date: Optional[datetime] = None
     notes: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
 
 class MedicineLog(BaseModel):
     reminder_id: str

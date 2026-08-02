@@ -93,15 +93,15 @@ const ScanMedicines = () => {
           <div className="mb-8">
             <button
               onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition font-medium text-sm"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Profile
             </button>
-            <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
+            <h1 className="text-gray-900 dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
               Scan Your Medicines
             </h1>
-            <p className="text-muted text-lg font-medium leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-400 text-lg font-medium leading-relaxed">
               Scan barcode or upload prescription to find medicines
             </p>
           </div>
@@ -117,12 +117,12 @@ const ScanMedicines = () => {
               className={`p-6 rounded-xl border-2 transition ${
                 scanMode === 'barcode'
                   ? 'border-primary bg-primary/10'
-                  : 'border-gray-700 bg-card-dark hover:border-gray-600'
+                  : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-card-dark hover:border-primary'
               }`}
             >
-              <Scan className={`w-8 h-8 mx-auto mb-3 ${scanMode === 'barcode' ? 'text-primary' : 'text-gray-400'}`} />
-              <h3 className="text-white font-semibold mb-1">Scan Barcode</h3>
-              <p className="text-sm text-gray-400">Scan medicine barcode</p>
+              <Scan className={`w-8 h-8 mx-auto mb-3 ${scanMode === 'barcode' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+              <h3 className="text-gray-900 dark:text-white font-bold mb-1">Scan Barcode</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Scan medicine barcode</p>
             </button>
             <button
               onClick={() => {
@@ -133,22 +133,22 @@ const ScanMedicines = () => {
               className={`p-6 rounded-xl border-2 transition ${
                 scanMode === 'prescription'
                   ? 'border-primary bg-primary/10'
-                  : 'border-gray-700 bg-card-dark hover:border-gray-600'
+                  : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-card-dark hover:border-primary'
               }`}
             >
-              <FileText className={`w-8 h-8 mx-auto mb-3 ${scanMode === 'prescription' ? 'text-primary' : 'text-gray-400'}`} />
-              <h3 className="text-white font-semibold mb-1">Upload Prescription</h3>
-              <p className="text-sm text-gray-400">Extract medicines from Rx</p>
+              <FileText className={`w-8 h-8 mx-auto mb-3 ${scanMode === 'prescription' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+              <h3 className="text-gray-900 dark:text-white font-bold mb-1">Upload Prescription</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Extract medicines from Rx</p>
             </button>
           </div>
 
           {/* Scan Options */}
-          <div className="bg-card-dark rounded-xl p-8 mb-6">
+          <div className="bg-white dark:bg-card-dark border border-gray-200 dark:border-sidebar-border rounded-xl p-8 mb-6 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={handleCameraClick}
                 disabled={loading}
-                className="p-8 bg-gradient-to-br from-primary to-blue-600 hover:from-blue-600 hover:to-primary text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Camera className="w-12 h-12 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">Take Photo</h3>
@@ -159,9 +159,9 @@ const ScanMedicines = () => {
               <button
                 onClick={handleUploadClick}
                 disabled={loading}
-                className="p-8 bg-gradient-to-br from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-8 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                <Upload className="w-12 h-12 mx-auto mb-4" />
+                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-200" />
                 <h3 className="text-xl font-bold mb-2">Upload Image</h3>
                 <p className="text-sm text-gray-300">
                   Choose image from gallery

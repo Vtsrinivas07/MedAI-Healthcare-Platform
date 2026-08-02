@@ -9,7 +9,12 @@ import os
 import io
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
+import numpy as np
+
+if TYPE_CHECKING:
+    import torch
+    import torch.nn as nn
 
 from models.medmnist_labels import (
     CHEST_DISPLAY_CLASSES,

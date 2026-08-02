@@ -2,17 +2,19 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   TestTube, Calendar, MapPin, Search, ShoppingCart, Phone, Upload, 
   Package, User, Activity, Heart, Brain, Eye, Bone, Filter, X, Check,
-  Clock, FileText, Microscope, Scan, Zap, Shield, Users, Baby, Sparkles
+  Clock, FileText, Microscope, Scan, Zap, Shield, Users, Baby, Sparkles,
+  Building2, Home, Building
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ChatLayout from '../components/ChatLayout';
+import api from '../services/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://medai-healthcare-platform-y8lf.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function PrescriptionTestsBanner() {
   const [ap, setAp] = useState(null);
   useEffect(() => {
-    try { setAp(JSON.parse(localStorage.getItem('activePrescription') || 'null')); } catch {}
+    try { setAp(JSON.parse(localStorage.getItem('activePrescription') || 'null')); } catch (err) { setAp(null); }
   }, []);
   if (!ap || !ap.lab_tests?.length) return null;
   return (
@@ -55,6 +57,46 @@ const BODY_SYSTEMS = [
   { id: 'diabetes', name: 'Diabetes', icon: Activity },
 ];
 
+// Partner Diagnostic Centers & Hospitals
+const DIAGNOSTIC_CENTERS = [
+  {
+    id: 'center-1',
+    name: 'MedAI Central Diagnostic & Imaging Center',
+    address: 'Plot No 138/A, Govinda Nagar Colony, Near Old Bus Stand Road',
+    city: 'Srikakulam',
+    timing: '07:00 AM - 09:00 PM',
+    facilities: 'X-Ray, CT Scan, MRI, Blood & Pathology Lab, ECG, Ultrasound',
+    badge: 'Partner Center (Recommended)'
+  },
+  {
+    id: 'center-2',
+    name: 'Apollo Diagnostic Lab & Scans',
+    address: 'Door No. 12-4, Hospital Road, Opp. District Hospital',
+    city: 'Srikakulam',
+    timing: '06:30 AM - 08:30 PM',
+    facilities: 'Digital X-Ray, Pathology, 2D Echo, Thyroid & Lipid Profile',
+    badge: 'NABL Accredited'
+  },
+  {
+    id: 'center-3',
+    name: 'Lifecare Advanced Scans & Laboratory',
+    address: 'Near Central Circle, College Road',
+    city: 'Srikakulam',
+    timing: '07:00 AM - 09:00 PM',
+    facilities: 'High Resolution CT, MRI, Blood Diagnostics, Mammography',
+    badge: 'Fast Reports (Same Day)'
+  },
+  {
+    id: 'center-4',
+    name: 'CityCare Multispecialty Hospital Lab',
+    address: 'Sector 4, Visakha Main Road',
+    city: 'Srikakulam',
+    timing: '24 Hours Open',
+    facilities: '24/7 Emergency Scans, Cardiac Markers, Comprehensive Labs',
+    badge: '24/7 Hospital Facility'
+  }
+];
+
 export default function LabTests() {
   const [tests, setTests] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -70,14 +112,19 @@ export default function LabTests() {
   const [prescriptionFile, setPrescriptionFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('browse');
   const [bookingForm, setBookingForm] = useState({
     scheduled_date: '',
     scheduled_time: '',
+    booking_type: 'center', // 'center' (Diagnostic center/hospital visit) or 'home' (Home collection)
+    selected_center_id: 'center-1',
+    custom_center_name: '',
     address: '',
-    city: '',
+    city: 'Srikakulam',
     pincode: '',
     phone: '',
-    notes: ''
+    notes: '',
+    payment_method: 'cod'
   });
   const reportInputRef = useRef(null);
   const prescriptionInputRef = useRef(null);
@@ -86,6 +133,66 @@ export default function LabTests() {
     fetchTests();
     fetchBookings();
   }, [selectedCategory, search]);
+
+  useEffect(() => {
+    try {
+      const pendingRaw = localStorage.getItem('pendingLabBooking');
+      if (pendingRaw) {
+        const pending = JSON.parse(pendingRaw);
+        localStorage.removeItem('pendingLabBooking');
+
+        if (pending?.tests && Array.isArray(pending.tests)) {
+          const autoCart = pending.tests.map((tName, idx) => ({
+            _id: `rec-${idx}-${Date.now()}`,
+            name: typeof tName === 'string' ? tName : (tName?.name || 'Lab Diagnostic Test'),
+            price: 499 + idx * 200,
+            test_count: 1,
+            fasting_required: false,
+            home_collection: true,
+          }));
+          setCart(autoCart);
+
+          const userStr = localStorage.getItem('user');
+          const profStr = localStorage.getItem('userProfile');
+          let uLoc = '', uPhone = '', uCity = '', uPin = '';
+          try {
+            if (userStr) {
+              const u = JSON.parse(userStr);
+              uLoc = u.location || '';
+              uPhone = u.mobile || u.phone || '';
+            }
+            if (profStr) {
+              const p = JSON.parse(profStr);
+              uLoc = p.location || uLoc;
+              uPhone = p.mobile || p.phone || uPhone;
+              uCity = p.city || '';
+              uPin = p.pincode || '';
+            }
+          } catch (err) {
+            console.warn(err);
+          }
+
+          const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          setBookingForm({
+            scheduled_date: pending.date || tomorrow,
+            scheduled_time: pending.time || '09:00',
+            booking_type: 'center',
+            selected_center_id: 'center-1',
+            custom_center_name: '',
+            address: uLoc || '',
+            phone: uPhone || '',
+            city: uCity || 'Srikakulam',
+            pincode: uPin || '',
+            payment_method: 'cod',
+            notes: pending.disease ? `Auto-recommended for ${pending.disease}` : 'Recommended from Chatbot diagnostic care plan.',
+          });
+          setShowBookingForm(true);
+        }
+      }
+    } catch (e) {
+      console.error('Error handling pending lab booking:', e);
+    }
+  }, []);
 
   const fetchTests = async () => {
     try {
@@ -199,57 +306,81 @@ export default function LabTests() {
       alert('Please add tests to cart');
       return;
     }
-    
-    if (!bookingForm.scheduled_date || !bookingForm.address || !bookingForm.phone) {
-      alert('Please fill all required fields');
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      alert('You are not logged in. Please log in to book tests.');
+      return;
+    }
+
+    if (!bookingForm.scheduled_date) {
+      alert('Please select an appointment date.');
+      return;
+    }
+
+    let finalCenterName = '';
+    let finalCenterAddress = '';
+
+    if (bookingForm.booking_type === 'center') {
+      if (bookingForm.selected_center_id === 'custom') {
+        if (!bookingForm.custom_center_name?.trim()) {
+          alert('Please enter your preferred clinic or hospital name.');
+          return;
+        }
+        finalCenterName = bookingForm.custom_center_name.trim();
+        finalCenterAddress = bookingForm.address.trim() || 'Selected Healthcare Facility';
+      } else {
+        const foundCenter = DIAGNOSTIC_CENTERS.find(c => c.id === bookingForm.selected_center_id) || DIAGNOSTIC_CENTERS[0];
+        finalCenterName = foundCenter.name;
+        finalCenterAddress = `${foundCenter.address}, ${foundCenter.city}`;
+      }
+    } else {
+      if (!bookingForm.address?.trim()) {
+        alert('Please enter your home address for sample collection.');
+        return;
+      }
+    }
+
+    if (!bookingForm.phone?.trim()) {
+      alert('Please enter your contact phone number.');
       return;
     }
     
     try {
-      const token = localStorage.getItem('authToken');
-      
       const bookingData = {
-        test_ids: cart.map(t => t._id),
+        test_ids: cart.map(t => String(t._id)),
         test_names: cart.map(t => t.name),
         total_price: getTotalAmount(),
         scheduled_date: bookingForm.scheduled_date,
         scheduled_time: bookingForm.scheduled_time || '09:00',
-        address: bookingForm.address,
-        city: bookingForm.city,
+        booking_type: bookingForm.booking_type,
+        center_name: finalCenterName,
+        center_address: finalCenterAddress,
+        address: bookingForm.booking_type === 'center' ? `${finalCenterName} (${finalCenterAddress})` : bookingForm.address,
+        city: bookingForm.city || 'Srikakulam',
         pincode: bookingForm.pincode,
         phone: bookingForm.phone,
         notes: bookingForm.notes,
+        payment_method: bookingForm.payment_method || 'cod',
+        payment_status: bookingForm.payment_method === 'online' ? 'paid' : 'pending',
         status: 'pending'
       };
       
-      const response = await fetch(`${API_BASE_URL}/api/lab-tests/bookings`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(bookingData)
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
+      const response = await api.post('/api/lab-tests/bookings', bookingData);
+      const data = response.data;
+
+      if (data?.success !== false) {
         // Upload prescription if available
-        if (prescriptionFile && data.booking_id) {
+        if (prescriptionFile && data?.booking_id) {
           const formData = new FormData();
           formData.append('booking_id', data.booking_id);
           formData.append('file', prescriptionFile);
-          
-          await fetch(`${API_BASE_URL}/api/lab-tests/upload-prescription`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formData
+          await api.post('/api/lab-tests/upload-prescription', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
         }
         
-        alert(`Booking confirmed! Booking ID: ${data.booking_id}`);
+        alert(`🎉 Appointment Confirmed! Booking ID: ${data?.booking_id || 'BK' + Date.now()}`);
         setCart([]);
         setShowBookingForm(false);
         setShowCart(false);
@@ -257,19 +388,29 @@ export default function LabTests() {
         setBookingForm({
           scheduled_date: '',
           scheduled_time: '',
+          booking_type: 'center',
+          selected_center_id: 'center-1',
+          custom_center_name: '',
           address: '',
-          city: '',
+          city: 'Srikakulam',
           pincode: '',
           phone: '',
           notes: ''
         });
         fetchBookings();
+        setActiveTab('orders');
       } else {
-        alert('Failed to book tests: ' + (data.detail || 'Unknown error'));
+        let errStr = data?.detail || data?.message || data?.error || 'Unknown error';
+        if (Array.isArray(data?.detail)) errStr = data.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+        alert('Failed to book tests: ' + errStr);
       }
     } catch (error) {
       console.error('Booking error:', error);
-      alert('Error booking tests: ' + error.message);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return;
+      }
+      const msg = error.response?.data?.detail || error.response?.data?.message || error.message || 'Unknown error';
+      alert('Error booking tests: ' + msg);
     }
   };
 
@@ -318,19 +459,140 @@ export default function LabTests() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
-              <input
-                type="text"
-                placeholder="Search for tests, packages, health checkups..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-sidebar border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+          {/* Top Tab Navigation: Browse Tests vs Order & Booking History */}
+          <div className="flex items-center gap-3 mb-6 border-b border-sidebar-border pb-3">
+            <button
+              onClick={() => setActiveTab('browse')}
+              className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'browse'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-sidebar text-muted hover:text-white border border-sidebar-border'
+              }`}
+            >
+              <TestTube className="w-4 h-4" /> Browse & Book Tests
+            </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'orders'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-sidebar text-muted hover:text-white border border-sidebar-border'
+              }`}
+            >
+              <FileText className="w-4 h-4" /> Order & Booking History
+              {bookings.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                  {bookings.length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {activeTab === 'orders' ? (
+            <div className="bg-sidebar rounded-xl border border-sidebar-border p-6 shadow-lg mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <FileText className="w-6 h-6 text-primary" />
+                    Lab Tests Order & Booking History
+                  </h2>
+                  <p className="text-sm text-muted mt-1">Track slot schedules, sample collection status, and payment details</p>
+                </div>
+                <button
+                  onClick={fetchBookings}
+                  className="px-3 py-1.5 rounded-lg bg-sidebar-hover hover:bg-sidebar-border text-cyan-300 text-xs font-semibold transition-all border border-sidebar-border"
+                >
+                  🔄 Refresh History
+                </button>
+              </div>
+
+              {bookings.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-sidebar-border rounded-xl">
+                  <Package className="w-12 h-12 text-muted mx-auto mb-3" />
+                  <p className="text-white font-semibold mb-1">No Lab Test Orders Yet</p>
+                  <p className="text-muted text-xs mb-4">Book your recommended lab tests from the AI Chatbot or browse available packages.</p>
+                  <button
+                    onClick={() => setActiveTab('browse')}
+                    className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition-all"
+                  >
+                    Browse Available Tests
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bookings.map((booking) => (
+                    <div key={booking._id} className="bg-sidebar-hover rounded-xl p-5 border border-sidebar-border flex flex-col gap-3 hover:border-primary/50 transition-all">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-sidebar-border/60 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-cyan-300 font-bold">
+                              ID: #{booking._id?.slice(-8)}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                              booking.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                              booking.status === 'confirmed' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                              booking.status === 'completed' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                              'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                            }`}>
+                              {booking.status || 'Scheduled'}
+                            </span>
+                            {booking.booking_type === 'home' ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                <Home className="w-3 h-3" /> Home Collection
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                                <Building2 className="w-3 h-3" /> Hospital / Lab Visit
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-bold text-white text-base mt-2">
+                            {booking.test_names?.join(', ') || 'Lab Diagnostic Screening'}
+                          </h3>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-extrabold text-primary">₹{booking.total_price || 0}</p>
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded mt-1 inline-block ${
+                            booking.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-orange-500/20 text-orange-300'
+                          }`}>
+                            {booking.payment_status === 'paid' ? '💳 PAID ONLINE' : '💵 CASH ON COLLECTION'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-300 pt-1">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <span><strong>Date:</strong> {booking.scheduled_date ? new Date(booking.scheduled_date).toLocaleDateString() : 'Tomorrow'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <span><strong>Slot Time:</strong> {booking.scheduled_time || '09:00 AM'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {booking.booking_type === 'home' ? (
+                            <Home className="w-4 h-4 text-emerald-400 shrink-0" />
+                          ) : (
+                            <Building2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                          )}
+                          <span className="truncate">
+                            <strong>{booking.booking_type === 'home' ? 'Home Address:' : 'Center/Hospital:'}</strong> {booking.center_name ? `${booking.center_name}` : (booking.address || 'MedAI Central Diagnostic Center')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {booking.notes && (
+                        <p className="text-xs text-muted italic bg-sidebar/50 p-2 rounded border border-sidebar-border/40">
+                          Note: {booking.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
 
           {/* Categories */}
           <div className="mb-8">
@@ -348,7 +610,7 @@ export default function LabTests() {
                 }`}
               >
                 <Filter className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="text-white font-medium text-sm">All Tests</p>
+                <p className="text-gray-900 dark:text-white font-medium text-sm">All Tests</p>
               </button>
               {TEST_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -363,7 +625,7 @@ export default function LabTests() {
                     }`}
                   >
                     <Icon className={`w-8 h-8 mx-auto mb-2 text-${cat.color}-500`} />
-                    <p className="text-white font-medium text-sm">{cat.name}</p>
+                    <p className="text-gray-900 dark:text-white font-medium text-sm">{cat.name}</p>
                   </button>
                 );
               })}
@@ -533,6 +795,7 @@ export default function LabTests() {
             </div>
           )}
         </div>
+      )}
 
         {/* Cart Sidebar */}
         {showCart && (
@@ -755,111 +1018,314 @@ export default function LabTests() {
 
         {/* Booking Form Modal */}
         {showBookingForm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-sidebar rounded-lg border border-sidebar-border max-w-2xl w-full p-6 my-8">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold dark:text-white text-gray-900">Book Lab Tests</h3>
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+            <div className="bg-sidebar rounded-2xl border border-sidebar-border max-w-2xl w-full max-h-[90vh] flex flex-col my-auto shadow-2xl overflow-hidden text-left">
+              {/* Modal Header */}
+              <div className="p-5 border-b border-sidebar-border flex items-center justify-between bg-sidebar shrink-0">
+                <div>
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <TestTube className="w-5 h-5 text-primary" /> Book Lab Tests & Diagnostics
+                  </h3>
+                  <p className="text-xs text-muted mt-0.5">Select appointment location, date, time & preferred clinic/lab center</p>
+                </div>
                 <button
                   onClick={() => setShowBookingForm(false)}
-                  className="p-2 hover:bg-sidebar-hover rounded-lg transition-colors"
+                  className="p-2 hover:bg-sidebar-hover text-muted hover:text-white rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-muted" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {/* Selected Tests */}
-                <div className="bg-sidebar-hover rounded-lg p-4 border border-sidebar-border">
-                  <h4 className="text-white font-semibold mb-3">Selected Tests</h4>
-                  <div className="space-y-2">
+              {/* Scrollable Content Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 max-h-[calc(90vh-140px)]">
+                {/* Selected Tests Summary */}
+                <div className="bg-sidebar-hover rounded-xl p-4 border border-sidebar-border">
+                  <h4 className="text-white text-sm font-semibold mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-cyan-400" /> Selected Tests & Scans ({cart.length})
+                  </h4>
+                  <div className="space-y-1.5 text-xs">
                     {cart.map(test => (
-                      <div key={test._id} className="flex justify-between text-sm">
-                        <span className="text-muted">{test.name}</span>
-                        <span className="text-white">₹{test.price}</span>
+                      <div key={test._id} className="flex justify-between items-center py-1 border-b border-sidebar-border/40 last:border-0">
+                        <span className="text-gray-300 font-medium">{test.name}</span>
+                        <span className="text-white font-bold">₹{test.price}</span>
                       </div>
                     ))}
-                    <div className="pt-2 border-t border-sidebar-border flex justify-between font-bold">
-                      <span className="text-white">Total Amount</span>
-                      <span className="text-primary text-lg">₹{getTotalAmount()}</span>
+                    <div className="pt-2 border-t border-sidebar-border flex justify-between items-center font-bold text-sm">
+                      <span className="text-white">Total Booking Amount</span>
+                      <span className="text-primary text-base">₹{getTotalAmount()}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Appointment Details */}
+                {/* Facility / Visit Type Toggle */}
                 <div>
-                  <h4 className="text-white font-semibold mb-3">Appointment Details</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="date"
-                      value={bookingForm.scheduled_date}
-                      onChange={(e) => setBookingForm({...bookingForm, scheduled_date: e.target.value})}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <input
-                      type="time"
-                      value={bookingForm.scheduled_time}
-                      onChange={(e) => setBookingForm({...bookingForm, scheduled_time: e.target.value})}
-                      className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                  <h4 className="text-white text-sm font-semibold mb-2.5 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-cyan-400" /> Appointment Facility Type
+                  </h4>
+                  <div className="flex rounded-xl p-1 bg-sidebar-hover border border-sidebar-border gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, booking_type: 'center' })}
+                      className={`flex-1 py-3 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        bookingForm.booking_type === 'center'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-muted hover:text-white'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4 text-cyan-300" />
+                      🏥 Clinic / Hospital / Lab Visit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, booking_type: 'home' })}
+                      className={`flex-1 py-3 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        bookingForm.booking_type === 'home'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-muted hover:text-white'
+                      }`}
+                    >
+                      <Home className="w-4 h-4 text-emerald-300" />
+                      🏠 Home Sample Collection
+                    </button>
                   </div>
                 </div>
 
-                {/* Address */}
-                <div>
-                  <h4 className="text-white font-semibold mb-3">Collection Address</h4>
+                {/* Center Selection OR Home Collection Address */}
+                {bookingForm.booking_type === 'center' ? (
                   <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Full Address"
-                      value={bookingForm.address}
-                      onChange={(e) => setBookingForm({...bookingForm, address: e.target.value})}
-                      className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-white text-sm font-semibold flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-cyan-400" /> Select Partner Diagnostic Center / Hospital
+                      </h4>
+                      <span className="text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 font-medium">
+                        Walk-in Appointment Available
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {DIAGNOSTIC_CENTERS.map(center => (
+                        <div
+                          key={center.id}
+                          onClick={() => setBookingForm({ ...bookingForm, selected_center_id: center.id })}
+                          className={`p-4 rounded-xl border text-left transition-all cursor-pointer relative ${
+                            bookingForm.selected_center_id === center.id
+                              ? 'border-cyan-500 bg-cyan-500/10 text-white shadow-lg ring-1 ring-cyan-500'
+                              : 'border-sidebar-border bg-sidebar-hover text-gray-300 hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-white flex items-center gap-1.5">
+                                  <Building2 className="w-4 h-4 text-cyan-400 shrink-0" /> {center.name}
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-primary/20 text-cyan-300 border border-cyan-500/30">
+                                  {center.badge}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-gray-500 shrink-0" /> {center.address}, {center.city}
+                              </p>
+                              <p className="text-[11px] text-cyan-300/80 mt-1.5 font-medium">
+                                🔬 Facilities: {center.facilities}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="text-[11px] text-emerald-400 font-semibold block">{center.timing}</span>
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center mt-2 ml-auto ${
+                                bookingForm.selected_center_id === center.id ? 'bg-cyan-500 border-cyan-500 text-black' : 'border-gray-600'
+                              }`}>
+                                {bookingForm.selected_center_id === center.id && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Custom Clinic Selection */}
+                      <div
+                        onClick={() => setBookingForm({ ...bookingForm, selected_center_id: 'custom' })}
+                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                          bookingForm.selected_center_id === 'custom'
+                            ? 'border-cyan-500 bg-cyan-500/10 text-white ring-1 ring-cyan-500'
+                            : 'border-sidebar-border bg-sidebar-hover text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-sm text-white flex items-center gap-2">
+                            <Building className="w-4 h-4 text-orange-400" /> Custom Clinic / Other Preferred Hospital
+                          </span>
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                            bookingForm.selected_center_id === 'custom' ? 'bg-cyan-500 border-cyan-500 text-black' : 'border-gray-600'
+                          }`}>
+                            {bookingForm.selected_center_id === 'custom' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                        </div>
+                        {bookingForm.selected_center_id === 'custom' && (
+                          <div className="mt-3 space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Enter Clinic or Hospital Name"
+                              value={bookingForm.custom_center_name}
+                              onChange={(e) => setBookingForm({ ...bookingForm, custom_center_name: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-sidebar border border-sidebar-border rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Hospital / Clinic Address & City"
+                              value={bookingForm.address}
+                              onChange={(e) => setBookingForm({ ...bookingForm, address: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-sidebar border border-sidebar-border rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Home className="w-4 h-4 text-emerald-400" /> Home Sample Collection Address
+                    </h4>
+                    <div className="space-y-3">
                       <input
                         type="text"
-                        placeholder="City"
-                        value={bookingForm.city}
-                        onChange={(e) => setBookingForm({...bookingForm, city: e.target.value})}
-                        className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="House / Flat No, Street Address"
+                        value={bookingForm.address}
+                        onChange={(e) => setBookingForm({...bookingForm, address: e.target.value})}
+                        className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                       />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="City"
+                          value={bookingForm.city}
+                          onChange={(e) => setBookingForm({...bookingForm, city: e.target.value})}
+                          className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Pincode"
+                          value={bookingForm.pincode}
+                          onChange={(e) => setBookingForm({...bookingForm, pincode: e.target.value})}
+                          className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Appointment Date & Time */}
+                <div>
+                  <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-cyan-400" /> Select Appointment Date & Slot
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-gray-400 mb-1 block">Preferred Date</label>
                       <input
-                        type="text"
-                        placeholder="Pincode"
-                        value={bookingForm.pincode}
-                        onChange={(e) => setBookingForm({...bookingForm, pincode: e.target.value})}
-                        className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                        type="date"
+                        value={bookingForm.scheduled_date}
+                        onChange={(e) => setBookingForm({...bookingForm, scheduled_date: e.target.value})}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-4 py-2.5 bg-sidebar-hover border border-sidebar-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
+                    <div>
+                      <label className="text-[11px] text-gray-400 mb-1 block">Preferred Slot Time</label>
+                      <input
+                        type="time"
+                        value={bookingForm.scheduled_time}
+                        onChange={(e) => setBookingForm({...bookingForm, scheduled_time: e.target.value})}
+                        className="w-full px-4 py-2.5 bg-sidebar-hover border border-sidebar-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Phone & Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Contact Phone Number *</label>
                     <input
                       type="tel"
-                      placeholder="Phone Number"
+                      placeholder="e.g. 9874563210"
                       value={bookingForm.phone}
                       onChange={(e) => setBookingForm({...bookingForm, phone: e.target.value})}
-                      className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full px-4 py-2.5 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    <textarea
-                      placeholder="Additional Notes (Optional)"
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Doctor / Special Notes (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Fasting status, Doctor reference..."
                       value={bookingForm.notes}
                       onChange={(e) => setBookingForm({...bookingForm, notes: e.target.value})}
-                      rows={3}
-                      className="w-full px-4 py-3 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                      className="w-full px-4 py-2.5 bg-sidebar-hover border border-sidebar-border rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                 </div>
 
+                {/* Payment Method Selection */}
+                <div>
+                  <h4 className="text-white text-sm font-semibold mb-2.5">Payment Method</h4>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, payment_method: 'at_center' })}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        (bookingForm.payment_method || 'at_center') === 'at_center'
+                          ? 'border-cyan-500 bg-cyan-500/10 text-white font-semibold shadow-md'
+                          : 'border-sidebar-border bg-sidebar-hover text-muted hover:border-gray-500'
+                      }`}
+                    >
+                      <p className="text-xs font-bold text-cyan-300">🏥 Pay at Center</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Pay on appointment visit</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, payment_method: 'cod' })}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        bookingForm.payment_method === 'cod'
+                          ? 'border-cyan-500 bg-cyan-500/10 text-white font-semibold shadow-md'
+                          : 'border-sidebar-border bg-sidebar-hover text-muted hover:border-gray-500'
+                      }`}
+                    >
+                      <p className="text-xs font-bold text-white">💵 Cash on Collection</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Pay phlebotomist/agent</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, payment_method: 'online' })}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        bookingForm.payment_method === 'online'
+                          ? 'border-cyan-500 bg-cyan-500/10 text-white font-semibold shadow-md'
+                          : 'border-sidebar-border bg-sidebar-hover text-muted hover:border-gray-500'
+                      }`}
+                    >
+                      <p className="text-xs font-bold text-emerald-400">💳 Online Payment</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Instant UPI / Card</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Fixed Footer */}
+              <div className="p-4 sm:p-5 border-t border-sidebar-border bg-sidebar shrink-0">
                 <button
                   onClick={bookTests}
-                  disabled={!bookingForm.scheduled_date || !bookingForm.address || !bookingForm.phone}
-                  className="w-full bg-primary text-white py-4 rounded-lg hover:bg-blue-600 transition-colors font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!bookingForm.scheduled_date || !bookingForm.phone}
+                  className="w-full bg-primary text-white py-3.5 rounded-xl hover:bg-blue-600 transition-colors font-bold text-base shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Confirm Booking - ₹{getTotalAmount()}
+                  <Check className="w-5 h-5" />
+                  Confirm Appointment Booking — ₹{getTotalAmount()}
                 </button>
               </div>
             </div>
           </div>
         )}
+        </div>
       </div>
     </ChatLayout>
   );

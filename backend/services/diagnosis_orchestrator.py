@@ -193,7 +193,7 @@ class DiagnosisOrchestratorService:
                 }
         else:
             decision_path = "text"
-            prediction = self.symptom_service.predict(symptoms or "")
+            prediction = await self.symptom_service.predict_async(symptoms or "")
 
         disease = prediction["disease"]
         confidence = float(prediction["confidence"])

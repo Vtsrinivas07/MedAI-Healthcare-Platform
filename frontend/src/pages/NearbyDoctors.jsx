@@ -915,6 +915,9 @@ function ActionModal({ doctor, action, onClose }) {
   const [message, setMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [consultationMode, setConsultationMode] = useState(
+    action === 'voice' ? 'voice' : action === 'video' ? 'video' : 'physical'
+  );
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -942,20 +945,17 @@ function ActionModal({ doctor, action, onClose }) {
     try {
       const token = localStorage.getItem('authToken');
       if (token) {
-        const consultationType =
-          action === 'appointment' ? 'in-person' :
-          action === 'video' ? 'video' :
-          action === 'voice' ? 'voice' : 'message';
+        const typeStr = action === 'message' ? 'message' : (consultationMode === 'physical' ? 'in-person' : consultationMode);
 
         const payload = {
           doctor_name: doctor.name,
           doctor_id: doctor._id?.startsWith('mock') ? null : doctor._id,
           specialization: doctor.specialty,
-          consultation_type: consultationType,
+          consultation_type: typeStr,
           status: 'scheduled',
           date: selectedDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
           time: to24h(selectedTime) || '10:00',
-          chief_complaint: message || `${consultationType} consultation with ${doctor.name}`,
+          chief_complaint: message || `${typeStr.toUpperCase()} consultation with ${doctor.name}`,
           notes: message || '',
           fee: doctor.consultation_fee,
         };
@@ -985,15 +985,11 @@ function ActionModal({ doctor, action, onClose }) {
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-gray-900 dark:text-white text-xl font-bold mb-2">
             {action === 'message' && 'Message Sent!'}
-            {action === 'voice' && 'Call Initiated!'}
-            {action === 'video' && 'Video Call Starting!'}
-            {action === 'appointment' && 'Appointment Booked!'}
+            {action !== 'message' && `${consultationMode.toUpperCase()} Appointment Booked!`}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 text-sm">
             {action === 'message' && `Your message to ${doctor.name} has been sent.`}
-            {action === 'voice' && `Connecting you to ${doctor.name}...`}
-            {action === 'video' && `Joining video session with ${doctor.name}...`}
-            {action === 'appointment' && `Your appointment with ${doctor.name} is confirmed.`}
+            {action !== 'message' && `Your ${consultationMode} appointment with ${doctor.name} is confirmed.`}
           </p>
         </div>
       </div>
@@ -1008,16 +1004,11 @@ function ActionModal({ doctor, action, onClose }) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               {action === 'message' && <MessageSquare className="w-5 h-5 text-primary" />}
-              {action === 'voice' && <Phone className="w-5 h-5 text-primary" />}
-              {action === 'video' && <Video className="w-5 h-5 text-primary" />}
-              {action === 'appointment' && <Calendar className="w-5 h-5 text-primary" />}
+              {action !== 'message' && <Calendar className="w-5 h-5 text-primary" />}
             </div>
             <div>
               <h3 className="text-gray-900 dark:text-white font-bold">
-                {action === 'message' && 'Send Message'}
-                {action === 'voice' && 'Voice Call'}
-                {action === 'video' && 'Video Consultation'}
-                {action === 'appointment' && 'Book Appointment'}
+                {action === 'message' ? 'Send Message' : 'Book Appointment'}
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-xs">{doctor.name}</p>
             </div>
@@ -1028,23 +1019,6 @@ function ActionModal({ doctor, action, onClose }) {
         </div>
 
         <div className="p-6 space-y-4">
-          {(action === 'voice' || action === 'video') && (
-            <div className="text-center py-4">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <User className="w-10 h-10 text-primary" />
-              </div>
-              <p className="text-gray-900 dark:text-white font-semibold">{doctor.name}</p>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">{doctor.specialty}</p>
-              <p className="text-green-500 text-sm mt-2 flex items-center justify-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Available Now
-              </p>
-              <p className="text-gray-500 dark:text-gray-400 text-xs mt-3">
-                {action === 'voice' ? 'Consultation fee: ₹' : 'Video consultation fee: ₹'}{doctor.consultation_fee}
-              </p>
-            </div>
-          )}
-
           {action === 'message' && (
             <>
               <div>
@@ -1061,8 +1035,53 @@ function ActionModal({ doctor, action, onClose }) {
             </>
           )}
 
-          {action === 'appointment' && (
+          {action !== 'message' && (
             <>
+              {/* Consultation Type Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                  Select Consultation Mode
+                </label>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setConsultationMode('voice')}
+                    className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      consultationMode === 'voice'
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400'
+                        : 'bg-gray-50 dark:bg-[#111418] border border-gray-200 dark:border-[#283039] text-gray-700 dark:text-gray-300 hover:border-blue-500'
+                    }`}
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span>Voice Call</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConsultationMode('video')}
+                    className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      consultationMode === 'video'
+                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400'
+                        : 'bg-gray-50 dark:bg-[#111418] border border-gray-200 dark:border-[#283039] text-gray-700 dark:text-gray-300 hover:border-purple-500'
+                    }`}
+                  >
+                    <Video className="w-4 h-4" />
+                    <span>Video Call</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConsultationMode('physical')}
+                    className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      consultationMode === 'physical'
+                        ? 'bg-orange-500 text-white shadow-md ring-2 ring-orange-400'
+                        : 'bg-gray-50 dark:bg-[#111418] border border-gray-200 dark:border-[#283039] text-gray-700 dark:text-gray-300 hover:border-orange-500'
+                    }`}
+                  >
+                    <Stethoscope className="w-4 h-4" />
+                    <span>Physical Visit</span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Date</label>
                 <input
@@ -1103,15 +1122,12 @@ function ActionModal({ doctor, action, onClose }) {
             disabled={
               loading ||
               (action === 'message' && !message.trim()) ||
-              (action === 'appointment' && (!selectedDate || !selectedTime))
+              (action !== 'message' && (!selectedDate || !selectedTime))
             }
             className="w-full py-3 rounded-xl bg-primary text-white font-semibold hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {action === 'message' && 'Send Message'}
-            {action === 'voice' && 'Start Voice Call'}
-            {action === 'video' && 'Join Video Call'}
-            {action === 'appointment' && 'Confirm Appointment'}
+            {action === 'message' ? 'Send Message' : `Confirm Appointment (${consultationMode.toUpperCase()})`}
           </button>
         </div>
       </div>
@@ -1123,13 +1139,6 @@ function DoctorCard({ doctor, onAction }) {
   const [expanded, setExpanded] = useState(false);
 
   const initials = doctor.name.split(' ').filter(p => p !== 'Dr.').map(p => p[0]).join('').slice(0, 2).toUpperCase();
-
-  const actionButtons = [
-    { key: 'message', icon: MessageSquare, label: 'Message', available: doctor.available_for_message, color: 'bg-blue-500 hover:bg-blue-600' },
-    { key: 'voice', icon: Phone, label: 'Voice Call', available: doctor.available_for_voice, color: 'bg-green-500 hover:bg-green-600' },
-    { key: 'video', icon: Video, label: 'Video Call', available: doctor.available_for_video, color: 'bg-purple-500 hover:bg-purple-600' },
-    { key: 'appointment', icon: Calendar, label: 'Appointment', available: doctor.available_for_appointment, color: 'bg-orange-500 hover:bg-orange-600' },
-  ];
 
   return (
     <div className="bg-white dark:bg-[#1b252f] border border-gray-100 dark:border-[#283039] rounded-2xl overflow-hidden hover:border-primary/40 transition-all duration-200 hover:shadow-lg dark:hover:shadow-primary/5">
@@ -1182,21 +1191,28 @@ function DoctorCard({ doctor, onAction }) {
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-4 gap-2 mb-3">
-          {actionButtons.map(({ key, icon: Icon, label, available, color }) => (
-            <button
-              key={key}
-              onClick={() => available && onAction(doctor, key)}
-              title={available ? label : `${label} not available`}
-              className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-white text-xs font-medium transition-all ${
-                available ? `${color} shadow-sm` : 'bg-gray-100 dark:bg-[#283039] text-gray-400 dark:text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="leading-none">{label.split(' ')[0]}</span>
-            </button>
-          ))}
+        {/* Action Buttons: Message and Book Appointment */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <button
+            onClick={() => doctor.available_for_message && onAction(doctor, 'message')}
+            disabled={!doctor.available_for_message}
+            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white text-xs font-bold transition-all shadow-sm cursor-pointer ${
+              doctor.available_for_message ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Message</span>
+          </button>
+          <button
+            onClick={() => doctor.available_for_appointment && onAction(doctor, 'appointment')}
+            disabled={!doctor.available_for_appointment}
+            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white text-xs font-bold transition-all shadow-sm cursor-pointer ${
+              doctor.available_for_appointment ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Book Appointment</span>
+          </button>
         </div>
 
         {/* Expand */}

@@ -64,11 +64,16 @@ const Profile = () => {
             const data = await res.json();
             if (setUser) setUser(prev => ({ ...prev, avatar_url: dataUrl, profile_picture: dataUrl }));
           }
-        } catch {}
+        } catch (err) {
+          console.error('Avatar update failed:', err);
+        }
         setAvatarUploading(false);
       };
       reader.readAsDataURL(file);
-    } catch { setAvatarUploading(false); }
+    } catch (err) {
+      console.error('File read failed:', err);
+      setAvatarUploading(false);
+    }
   };
   const [formData, setFormData] = useState({
     name: user?.name || '',

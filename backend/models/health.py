@@ -13,6 +13,17 @@ class VitalSigns(BaseModel):
     height: Optional[float] = None
     blood_sugar: Optional[float] = None
     oxygen_saturation: Optional[int] = None
+    age: Optional[int] = None
+    sex: Optional[str] = None
+    ethnicity: Optional[str] = None
+    glucose_type: Optional[str] = None
+    exercise_minutes: Optional[int] = None
+    sleep_hours: Optional[float] = None
+    water_intake_ml: Optional[int] = None
+    pain_level: Optional[int] = None
+    medication_schedule: Optional[str] = None
+    chronic_conditions: Optional[str] = None
+    allergies: Optional[str] = None
 
 class HealthLog(BaseModel):
     id: Optional[str] = Field(alias="_id", default=None)

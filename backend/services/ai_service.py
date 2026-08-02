@@ -23,6 +23,8 @@ class AIService:
         
         if self.provider == "gemini":
             self._init_gemini()
+        elif self.provider == "groq":
+            self._init_groq()
         elif self.provider == "huggingface":
             self._init_huggingface()
         elif self.provider == "openai":
@@ -190,6 +192,19 @@ class AIService:
         else:
             logger.error("❌ OpenAI API key not configured")
     
+    def _init_groq(self):
+        """Initialize Groq API (Ultra Fast & Free)"""
+        if settings.GROQ_API_KEY and settings.GROQ_API_KEY != "your-groq-api-key-here":
+            self.client = AsyncOpenAI(
+                api_key=settings.GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1"
+            )
+            self.model = settings.GROQ_MODEL
+            self.api_key_valid = True
+            logger.info(f"✅ Groq initialized with model: {self.model}")
+        else:
+            logger.error("❌ Groq API key not configured")
+
     def _init_ollama(self):
         """Initialize Ollama (Local)"""
         self.client = AsyncOpenAI(
@@ -214,6 +229,7 @@ class AIService:
         if not self.api_key_valid:
             providers_guide = {
                 "gemini": "https://aistudio.google.com/app/apikey (FREE)",
+                "groq": "https://console.groq.com/keys (FREE)",
                 "huggingface": "https://huggingface.co/settings/tokens (FREE)",
                 "openai": "https://platform.openai.com/api-keys (Paid)",
                 "ollama": "https://ollama.ai/download (Local - FREE)",

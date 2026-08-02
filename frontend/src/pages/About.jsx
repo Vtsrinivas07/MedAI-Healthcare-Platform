@@ -99,12 +99,12 @@ const About = () => {
           <div className="mb-8">
             <button
               onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Profile
             </button>
-            <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
+            <h1 className="text-gray-900 dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
               About MedAI
             </h1>
             <p className="text-muted text-lg font-medium leading-relaxed">
@@ -121,7 +121,7 @@ const About = () => {
               <p className="text-blue-100 text-lg leading-relaxed">
                 MedAI is a comprehensive digital healthcare platform that brings together online pharmacy,
                 lab tests, AI-powered health assistance, and expert consultations - all in one place.
-                We're on a mission to make healthcare accessible, affordable, and convenient for everyone.
+                We&apos;re on a mission to make healthcare accessible, affordable, and convenient for everyone.
               </p>
             </div>
           </div>
@@ -131,10 +131,10 @@ const About = () => {
             {stats.map((stat, index) => {
               const IconComponent = stat.icon;
               return (
-                <div key={index} className="bg-card-dark rounded-xl p-6 text-center">
+                <div key={index} className="bg-white dark:bg-card-dark rounded-xl p-6 text-center border border-gray-200 dark:border-sidebar-border">
                   <IconComponent className="w-8 h-8 text-primary mx-auto mb-3" />
-                  <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-                  <div className="text-sm text-gray-400">{stat.label}</div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</div>
                 </div>
               );
             })}
@@ -142,17 +142,17 @@ const About = () => {
 
           {/* Features */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Why Choose MedAI?</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Why Choose MedAI?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {features.map((feature, index) => {
                 const IconComponent = feature.icon;
                 return (
-                  <div key={index} className="bg-card-dark rounded-xl p-6 hover:bg-gray-800 transition">
+                  <div key={index} className="bg-white dark:bg-card-dark rounded-xl p-6 border border-gray-200 dark:border-sidebar-border hover:border-primary/40 hover:shadow-md transition">
                     <div className={`w-12 h-12 rounded-xl bg-opacity-10 ${feature.color.replace('text-', 'bg-')} flex items-center justify-center mb-4`}>
                       <IconComponent className={`w-6 h-6 ${feature.color}`} />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                    <p className="text-gray-400 text-sm">{feature.description}</p>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{feature.title}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">{feature.description}</p>
                   </div>
                 );
               })}
@@ -161,15 +161,15 @@ const About = () => {
 
           {/* Mission, Vision, Promise */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Our Values</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Our Values</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {values.map((value, index) => {
                 const IconComponent = value.icon;
                 return (
-                  <div key={index} className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6">
+                  <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                     <IconComponent className="w-10 h-10 text-primary mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-3">{value.title}</h3>
-                    <p className="text-gray-400 leading-relaxed">{value.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{value.title}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed">{value.description}</p>
                   </div>
                 );
               })}
@@ -178,8 +178,8 @@ const About = () => {
 
           {/* Timeline */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Our Journey</h2>
-            <div className="bg-card-dark rounded-xl p-6 md:p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Our Journey</h2>
+            <div className="bg-white dark:bg-card-dark rounded-xl p-6 md:p-8 border border-gray-200 dark:border-sidebar-border">
               <div className="space-y-6">
                 {timeline.map((item, index) => (
                   <div key={index} className="flex gap-6">
@@ -188,12 +188,12 @@ const About = () => {
                         {item.year}
                       </div>
                       {index < timeline.length - 1 && (
-                        <div className="w-0.5 h-full bg-gray-700 mt-2"></div>
+                        <div className="w-0.5 h-full bg-gray-200 dark:bg-gray-700 mt-2"></div>
                       )}
                     </div>
                     <div className="pb-6">
-                      <h3 className="text-lg font-semibold text-white mb-1">{item.event}</h3>
-                      <p className="text-gray-400 text-sm">{item.description}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{item.event}</h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">{item.description}</p>
                     </div>
                   </div>
                 ))}
@@ -203,77 +203,38 @@ const About = () => {
 
           {/* Services */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Our Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Our Services</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border border-blue-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-3">🏥 Online Pharmacy</h3>
-                <ul className="space-y-2 text-gray-300 text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                    <span>10,000+ genuine medicines and health products</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                    <span>Prescription upload and verification</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                    <span>Fast delivery to your doorstep</span>
-                  </li>
+              <div className="bg-blue-50 dark:bg-gradient-to-br dark:from-blue-900/50 dark:to-blue-800/50 border border-blue-200 dark:border-blue-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-blue-900 dark:text-white mb-3">🏥 Online Pharmacy</h3>
+                <ul className="space-y-2 text-blue-800 dark:text-gray-300 text-sm">
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" /><span>10,000+ genuine medicines and health products</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" /><span>Prescription upload and verification</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" /><span>Fast delivery to your doorstep</span></li>
                 </ul>
               </div>
-
-              <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border border-purple-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-3">🔬 Lab Tests</h3>
-                <ul className="space-y-2 text-gray-300 text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
-                    <span>Home sample collection at your convenience</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
-                    <span>NABL certified labs and accurate results</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
-                    <span>Digital reports within 24-48 hours</span>
-                  </li>
+              <div className="bg-purple-50 dark:bg-gradient-to-br dark:from-purple-900/50 dark:to-purple-800/50 border border-purple-200 dark:border-purple-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-purple-900 dark:text-white mb-3">🔬 Lab Tests</h3>
+                <ul className="space-y-2 text-purple-800 dark:text-gray-300 text-sm">
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /><span>Home sample collection at your convenience</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /><span>NABL certified labs and accurate results</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /><span>Digital reports within 24-48 hours</span></li>
                 </ul>
               </div>
-
-              <div className="bg-gradient-to-br from-green-900/50 to-green-800/50 border border-green-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-3">🤖 AI Health Assistant</h3>
-                <ul className="space-y-2 text-gray-300 text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span>24/7 AI-powered health guidance</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span>Personalized health recommendations</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span>Symptom checker and health insights</span>
-                  </li>
+              <div className="bg-green-50 dark:bg-gradient-to-br dark:from-green-900/50 dark:to-green-800/50 border border-green-200 dark:border-green-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-green-900 dark:text-white mb-3">🤖 AI Health Assistant</h3>
+                <ul className="space-y-2 text-green-800 dark:text-gray-300 text-sm">
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" /><span>24/7 AI-powered health guidance</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" /><span>Personalized health recommendations</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" /><span>Symptom checker and health insights</span></li>
                 </ul>
               </div>
-
-              <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/50 border border-orange-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-3">💊 Medicine Reminders</h3>
-                <ul className="space-y-2 text-gray-300 text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                    <span>Smart medication tracking and reminders</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                    <span>Adherence monitoring and reports</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                    <span>Automated refill reminders</span>
-                  </li>
+              <div className="bg-orange-50 dark:bg-gradient-to-br dark:from-orange-900/50 dark:to-orange-800/50 border border-orange-200 dark:border-orange-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-orange-900 dark:text-white mb-3">💊 Medicine Reminders</h3>
+                <ul className="space-y-2 text-orange-800 dark:text-gray-300 text-sm">
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" /><span>Smart medication tracking and reminders</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" /><span>Adherence monitoring and reports</span></li>
+                  <li className="flex items-start gap-2"><CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" /><span>Automated refill reminders</span></li>
                 </ul>
               </div>
             </div>
@@ -283,18 +244,18 @@ const About = () => {
           <div className="bg-gradient-to-r from-primary to-blue-600 rounded-xl p-8 text-center">
             <h2 className="text-2xl font-bold text-white mb-3">Get in Touch</h2>
             <p className="text-blue-100 mb-6">
-              Have questions? We're here to help!
+              Have questions? We&apos;re here to help!
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
                 onClick={() => navigate('/help')}
-                className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-blue-50 transition"
+                className="px-6 py-3 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 shadow-md transition-all cursor-pointer"
               >
                 Contact Support
               </button>
               <button
                 onClick={() => navigate('/chatbot')}
-                className="px-6 py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800 transition"
+                className="px-6 py-3 bg-blue-900 text-white font-bold rounded-xl hover:bg-blue-950 border border-blue-400/40 shadow-md transition-all cursor-pointer"
               >
                 Chat with AI
               </button>

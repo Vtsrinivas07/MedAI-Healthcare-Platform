@@ -32,18 +32,37 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect on 401 if it's not a login/register request
+    // Only redirect on 401/403 if it's not a login/register request
     const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
                            error.config?.url?.includes('/auth/register') ||
                            error.config?.url?.includes('/auth/google') ||
                            error.config?.url?.includes('/auth/verify-otp');
     
-    if (error.response?.status === 401 && !isAuthEndpoint) {
-      // Token expired or invalid (not a login failure)
+    const status = error.response?.status;
+
+    if ((status === 401 || status === 403) && !isAuthEndpoint) {
+      // Token expired or invalid — redirect to login
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+
+    // FastAPI 422 with "Field required" on credentials = expired/missing token
+    if (status === 422 && !isAuthEndpoint) {
+      const detail = error.response?.data?.detail;
+      const errors = error.response?.data?.errors;
+      const isAuthFieldError =
+        (Array.isArray(detail) && detail.every(e => e.msg === 'Field required')) ||
+        (Array.isArray(errors) && errors.every(e => e.msg === 'Field required'));
+      if (isAuthFieldError) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

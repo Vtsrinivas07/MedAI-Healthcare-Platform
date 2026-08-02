@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Calendar, Upload, X, CheckCircle, AlertCircle, Pill,
   TestTube, Activity, Bell, ChevronDown, ChevronUp,
-  Bot, Sparkles, RefreshCw, Save, Stethoscope, Utensils
+  Bot, Sparkles, RefreshCw, Save, Stethoscope, Utensils, User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatLayout from '../components/ChatLayout';
@@ -138,6 +138,139 @@ function UploadModal({ onClose, onParsed }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Visual Prescription Card Renderer ─────────────────────────────
+function VisualPrescriptionCard({ rawText, parsedData }) {
+  if (!rawText && !parsedData) return null;
+
+  const text = rawText || parsedData?.notes || '';
+
+  // Extract doctor name & clinic
+  const docMatch = text.match(/(?:Dr\.|Doctor)\s+([A-Za-z\s.]+?)(?:MBBS|MD|Clinic|Patient|Date|Reg|\n|$)/i);
+  const doctorName = parsedData?.doctor_name && parsedData.doctor_name !== 'Prescription Document' && parsedData.doctor_name !== 'Self-upload'
+    ? parsedData.doctor_name
+    : (docMatch ? docMatch[1].trim() : '');
+
+  const clinicMatch = text.match(/([A-Za-z0-9\s&]+(?:Clinic|Hospital|Center|Wellness|Health)[^\n\r|,*])/i);
+  const clinic = clinicMatch ? clinicMatch[1].trim() : '';
+
+  // Extract patient & metadata
+  const patientMatch = text.match(/(?:Patient|Name)\s*[:-]\s*([A-Za-z\s]+?)(?:Age|Sex|Date|Reg|\n|$)/i);
+  const patientName = parsedData?.patient_name || (patientMatch ? patientMatch[1].trim() : '');
+
+  const ageMatch = text.match(/Age\s*[:-]\s*(\d+\s*(?:years|yrs)?)/i);
+  const age = ageMatch ? ageMatch[1].trim() : '';
+
+  const dateMatch = text.match(/(?:Date|Dated)\s*[:-]\s*([\d/-]+)/i);
+  const dateStr = dateMatch ? dateMatch[1].trim() : '';
+
+  const regMatch = text.match(/(?:Reg|Rx|No)\s*No?\s*[:-]\s*([A-Za-z0-9-]+)/i);
+  const regNo = regMatch ? regMatch[1].trim() : '';
+
+  const diagMatch = text.match(/(?:DIAGNOSIS|Diagnosis|Indication|Condition)\s*[:-]\s*([^\n\r|]+)/i);
+  const diagnosis = parsedData?.diagnosis && parsedData.diagnosis !== 'Uploaded Prescription' && parsedData.diagnosis !== 'Uploaded prescription'
+    ? parsedData.diagnosis
+    : (diagMatch ? diagMatch[1].trim() : 'Prescription Review');
+
+  // Parse medicines list cleanly if AI missed them
+  let medicines = parsedData?.medicines || [];
+  if (medicines.length === 0 && text) {
+    const rxParts = text.split(/(?=\d+[.)]\s*[A-Z])/);
+    rxParts.forEach(part => {
+      const m = part.match(/(?:\d+[.)]\s*)?([A-Za-z0-9\s-]+?\b\d+\s*(?:mg|g|mcg|ml|IU|iu))\s*(.*)/i);
+      if (m) {
+        const name = m[1].trim();
+        const rest = m[2] || '';
+        const doseMatch = rest.match(/(?:Dose|Dosage|frequency)\s*[:-]\s*([^|]+)/i);
+        const durMatch = rest.match(/Duration\s*[:-]\s*([^|]+)/i);
+        const instMatch = rest.match(/(?:Take|Instructions?)\s*[:-]?\s*([^.\n|]+)/i);
+
+        medicines.push({
+          name: name,
+          dosage: '',
+          frequency: doseMatch ? doseMatch[1].trim() : 'As prescribed',
+          duration: durMatch ? durMatch[1].trim() : 'As advised',
+          instructions: instMatch ? instMatch[0].trim() : rest.replace(/\|/g, ' · ').trim()
+        });
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/40 p-5 shadow-md dark:shadow-2xl text-gray-900 dark:text-white">
+      {/* Visual Header Banner */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 dark:from-blue-900/80 via-indigo-50 dark:via-indigo-900/80 to-slate-50 dark:to-slate-900/90 border border-blue-200 dark:border-blue-400/30 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/30 flex items-center justify-center border border-blue-300 dark:border-blue-400/50 shrink-0">
+            <Stethoscope className="w-5 h-5 text-blue-600 dark:text-cyan-300" />
+          </div>
+          <div>
+            <h3 className="font-extrabold text-gray-900 dark:text-white text-base">{doctorName ? `Dr. ${doctorName}` : 'Prescribing Physician'}</h3>
+            <p className="text-xs text-blue-600 dark:text-cyan-200 font-semibold">{clinic || 'Medical Clinic & Diagnostic Center'}</p>
+          </div>
+        </div>
+
+        <div className="text-right text-xs space-y-0.5">
+          {dateStr && <p className="font-bold text-blue-600 dark:text-cyan-300">📅 Date: {dateStr}</p>}
+          {regNo && <p className="text-[11px] text-gray-500 dark:text-gray-300 font-medium">Reg No: {regNo}</p>}
+        </div>
+      </div>
+
+      {/* Patient & Diagnosis Information Card */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {patientName && (
+          <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 flex items-center gap-3 shadow-sm">
+            <User className="w-5 h-5 text-purple-500 dark:text-purple-400 shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-400">Patient Name</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">{patientName} {age ? `(Age: ${age})` : ''}</p>
+            </div>
+          </div>
+        )}
+        <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-400/40 flex items-center gap-3 shadow-sm">
+          <Activity className="w-5 h-5 text-blue-500 dark:text-blue-300 shrink-0" />
+          <div>
+            <p className="text-[10px] uppercase font-bold text-blue-500 dark:text-blue-300">Extracted Clinical Diagnosis</p>
+            <p className="text-sm font-extrabold text-gray-900 dark:text-white">{diagnosis}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Visual Prescribed Medicines Cards */}
+      {medicines.length > 0 && (
+        <div className="space-y-3 pt-1">
+          <h4 className="text-xs font-bold text-purple-600 dark:text-purple-300 uppercase tracking-wider flex items-center gap-2">
+            <Pill className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Visually Parsed Prescribed Medications ({medicines.length})
+          </h4>
+          <div className="grid grid-cols-1 gap-2.5">
+            {medicines.map((med, i) => (
+              <div key={i} className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/90 border border-purple-200 dark:border-purple-400/40 flex flex-wrap items-center justify-between gap-3 shadow-sm hover:border-purple-400 dark:hover:border-purple-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-500/30 border border-purple-300 dark:border-purple-400/40 flex items-center justify-center shrink-0">
+                    <Pill className="w-4 h-4 text-purple-600 dark:text-purple-200" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-white text-base">{med.name}</p>
+                    <div className="flex flex-wrap gap-2 mt-1.5 text-xs">
+                      {med.frequency && <span className="px-2.5 py-0.5 rounded-md font-bold bg-blue-100 dark:bg-blue-500/30 text-blue-700 dark:text-blue-200 border border-blue-200 dark:border-blue-400/40">🕒 {med.frequency}</span>}
+                      {med.duration && <span className="px-2.5 py-0.5 rounded-md font-bold bg-emerald-100 dark:bg-emerald-500/30 text-emerald-700 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-400/40">⏱️ {med.duration}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {med.instructions && (
+                  <div className="text-xs text-cyan-700 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/70 px-3 py-2 rounded-lg border border-cyan-200 dark:border-cyan-400/40 font-semibold shadow-sm">
+                    💡 {med.instructions}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -298,10 +431,8 @@ function ParsedResultModal({ parsed, prescriptionId, onClose, onSaved }) {
             </div>
           )}
 
-          {parsed.notes && (
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#283039] border border-gray-100 dark:border-[#3d4d5d] text-sm text-gray-600 dark:text-gray-400">
-              {parsed.notes}
-            </div>
+          {(parsed.notes || parsed.raw_text) && (
+            <VisualPrescriptionCard rawText={parsed.notes || parsed.raw_text || ''} parsedData={parsed} />
           )}
         </div>
 
@@ -490,93 +621,144 @@ export default function PatientPrescriptions() {
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {prescriptions.map(prescription => (
-                <div key={prescription._id} className="bg-white dark:bg-[#1b252f] rounded-2xl border border-gray-100 dark:border-[#283039] shadow-sm overflow-hidden">
-                  {/* Card header */}
-                  <div
-                    className="flex items-center justify-between p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1c2127] transition-colors"
-                    onClick={() => setExpandedId(expandedId === prescription._id ? null : prescription._id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <Stethoscope className="w-6 h-6 text-blue-500" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900 dark:text-white">
-                          {prescription.source === 'uploaded' ? 'Uploaded Prescription' : `Dr. ${prescription.doctor_name}`}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {new Date(prescription.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          &nbsp;·&nbsp;{prescription.medicines?.length || 0} medicine(s)
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        prescription.status === 'active'
-                          ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                      }`}>{prescription.status}</span>
-                      {expandedId === prescription._id
-                        ? <ChevronUp className="w-5 h-5 text-gray-400" />
-                        : <ChevronDown className="w-5 h-5 text-gray-400" />
-                      }
-                    </div>
-                  </div>
+            <div className="space-y-6">
+              {prescriptions.map((prescription, index) => {
+                const isExpanded = expandedId === prescription._id || (index === 0 && expandedId === null);
+                
+                // Dynamically enrich prescription if medicines/diagnosis/doctor were raw
+                const enriched = (() => {
+                  const p = { ...prescription };
+                  const raw = p.notes || p.raw_text || '';
 
-                  {/* Expanded details */}
-                  {expandedId === prescription._id && (
-                    <div className="border-t dark:border-[#283039] p-5 space-y-4">
-                      {prescription.diagnosis && (
+                  if (!p.doctor_name || p.doctor_name === 'Self-upload' || p.doctor_name === 'Prescription Document') {
+                    const docMatch = raw.match(/(?:Dr\.|Doctor)\s+([A-Za-z\s.]+?)(?:MBBS|MD|Clinic|Patient|Date|Reg|\n|$)/i);
+                    if (docMatch) p.doctor_name = docMatch[1].trim();
+                  }
+
+                  if (!p.diagnosis || p.diagnosis === 'Uploaded Prescription' || p.diagnosis === 'Uploaded prescription' || p.diagnosis === 'Extracted from uploaded prescription') {
+                    const diagMatch = raw.match(/(?:DIAGNOSIS|Diagnosis|Indication|Condition)\s*[:-]\s*([^\n\r|]+)/i);
+                    if (diagMatch) p.diagnosis = diagMatch[1].trim();
+                  }
+
+                  if (!p.medicines || p.medicines.length === 0) {
+                    const foundMeds = [];
+                    const rxParts = raw.split(/(?=\d+[.)]\s*[A-Z])/);
+                    rxParts.forEach(part => {
+                      const m = part.match(/(?:\d+[.)]\s*)?([A-Za-z0-9\s-]+?\b\d+\s*(?:mg|g|mcg|ml|IU|iu))\s*(.*)/i);
+                      if (m) {
+                        const name = m[1].trim();
+                        const rest = m[2] || '';
+                        const doseMatch = rest.match(/(?:Dose|Dosage|frequency)\s*[:-]\s*([^|]+)/i);
+                        const durMatch = rest.match(/Duration\s*[:-]\s*([^|]+)/i);
+                        const instMatch = rest.match(/(?:Take|Instructions?)\s*[:-]?\s*([^.\n|]+)/i);
+
+                        foundMeds.push({
+                          name: name,
+                          dosage: '',
+                          frequency: doseMatch ? doseMatch[1].trim() : 'As prescribed',
+                          duration: durMatch ? durMatch[1].trim() : 'As advised',
+                          instructions: instMatch ? instMatch[0].trim() : rest.replace(/\|/g, ' · ').trim()
+                        });
+                      }
+                    });
+                    if (foundMeds.length > 0) p.medicines = foundMeds;
+                  }
+
+                  return p;
+                })();
+
+                return (
+                  <div key={enriched._id} className="bg-white dark:bg-[#1b252f] rounded-2xl border border-gray-200 dark:border-[#283039] shadow-md overflow-hidden transition-all">
+                    {/* Card header */}
+                    <div
+                      className="flex flex-wrap items-center justify-between p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1c2127] transition-colors border-b border-gray-100 dark:border-[#283039]"
+                      onClick={() => setExpandedId(isExpanded ? 'none' : enriched._id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0 border border-blue-500/30">
+                          <Stethoscope className="w-6 h-6 text-blue-500" />
+                        </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Diagnosis</p>
-                          <p className="text-gray-900 dark:text-white">{prescription.diagnosis}</p>
-                        </div>
-                      )}
-                      {prescription.medicines?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Medicines</p>
-                          <div className="space-y-2">
-                            {prescription.medicines.map((med, idx) => (
-                              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#283039]">
-                                <Pill className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="font-medium text-gray-900 dark:text-white text-sm">{med.name}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">{med.dosage} · {med.frequency} · {med.duration}</p>
-                                  {med.instructions && <p className="text-xs text-blue-500 mt-0.5">{med.instructions}</p>}
-                                </div>
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                              {enriched.doctor_name ? `Dr. ${enriched.doctor_name}` : (enriched.filename || 'Uploaded Prescription Document')}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              {enriched.source || 'AI Parsed'}
+                            </span>
                           </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-cyan-400" /> {new Date(enriched.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            <span>•</span>
+                            <span className="text-purple-400 font-semibold">{enriched.medicines?.length || 0} medicine(s) extracted</span>
+                          </p>
                         </div>
-                      )}
-                      {prescription.lab_tests?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Lab Tests</p>
-                          <div className="flex flex-wrap gap-2">
-                            {prescription.lab_tests.map((t, i) => (
-                              <span key={i} className="px-3 py-1 bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-lg text-xs font-medium border border-orange-200 dark:border-orange-500/20">{t}</span>
-                            ))}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          {enriched.status || 'Active'}
+                        </span>
+                        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded extracted details */}
+                    {isExpanded && (
+                      <div className="p-6 space-y-6 bg-gray-50/50 dark:bg-[#151e27]">
+
+                        {/* Recommended Lab Tests */}
+                        {enriched.lab_tests?.length > 0 && (
+                          <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
+                                <TestTube className="w-4 h-4" /> Recommended Lab Diagnostic Tests
+                              </h4>
+                              <button
+                                onClick={() => {
+                                  const pendingData = {
+                                    tests: enriched.lab_tests,
+                                    isRequired: true,
+                                    disease: enriched.diagnosis || '',
+                                    date: new Date().toISOString().split('T')[0],
+                                    time: '09:00',
+                                  };
+                                  localStorage.setItem('pendingLabBooking', JSON.stringify(pendingData));
+                                  window.location.href = '/lab-tests';
+                                }}
+                                className="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all cursor-pointer shadow"
+                              >
+                                🧪 Book These Lab Tests
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {enriched.lab_tests.map((t, i) => (
+                                <span key={i} className="px-3 py-1.5 bg-sidebar rounded-lg text-xs font-semibold text-orange-300 border border-orange-500/30">
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {prescription.dietary_advice && (
-                        <div className="flex items-start gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
-                          <Utensils className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Dietary Advice</p>
-                            <p className="text-sm text-gray-900 dark:text-white mt-1">{prescription.dietary_advice}</p>
+                        )}
+
+                        {/* Dietary & Lifestyle Advice */}
+                        {enriched.dietary_advice && (
+                          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+                            <Utensils className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-bold text-emerald-400 uppercase tracking-wide">Dietary & Lifestyle Instructions</p>
+                              <p className="text-sm text-gray-900 dark:text-white mt-1 leading-relaxed">{enriched.dietary_advice}</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {prescription.notes && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 p-3 rounded-xl bg-gray-50 dark:bg-[#283039]">{prescription.notes}</p>
-                      )}
-                      {/* Quick apply buttons */}
-                      <div className="flex gap-2 pt-1">
-                        {prescription.medicines?.length > 0 && (
+                        )}
+
+                        {/* Visual Prescription Card Renderer */}
+                        {(enriched.notes || enriched.raw_text) && (
+                          <VisualPrescriptionCard rawText={enriched.notes || enriched.raw_text || ''} parsedData={enriched} />
+                        )}
+
+                        {/* Comprehensive Action Bar */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-200 dark:border-[#283039]">
                           <button
                             onClick={async () => {
                               const token = localStorage.getItem('authToken');
@@ -584,35 +766,50 @@ export default function PatientPrescriptions() {
                                 const res = await fetch(`${API_URL}/api/medicine/bulk-reminders`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                  body: JSON.stringify({ medicines: prescription.medicines }),
+                                  body: JSON.stringify({ medicines: enriched.medicines || [] }),
                                 });
                                 const data = await res.json();
-                                localStorage.setItem('activePrescription', JSON.stringify({ ...prescription, applied_at: new Date().toISOString() }));
-                                alert(`✅ ${data.created_count || prescription.medicines.length} reminder(s) added! Go to Medicine Reminders to view them.`);
+                                localStorage.setItem('activePrescription', JSON.stringify({ ...enriched, applied_at: new Date().toISOString() }));
+                                alert(`✅ ${data.created_count || (enriched.medicines?.length || 0)} reminder(s) added! Go to Medicine Reminders to view them.`);
                                 fetchPrescriptions();
                               } catch (e) {
                                 alert('Failed to add reminders: ' + e.message);
                               }
                             }}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30 text-xs font-semibold transition-colors"
+                            className="py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow flex items-center justify-center gap-1.5 cursor-pointer"
                           >
-                            <Bell className="w-3.5 h-3.5" /> Add Reminders
+                            <Bell className="w-4 h-4" /> Add Medicine Reminders
                           </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            localStorage.setItem('activePrescription', JSON.stringify({ ...prescription, applied_at: new Date().toISOString() }));
-                            alert('✅ Prescription context applied to Health Tracking & Lab Tests!');
-                          }}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-500/30 text-xs font-semibold transition-colors"
-                        >
-                          <Activity className="w-3.5 h-3.5" /> Apply Context
-                        </button>
+
+                          <button
+                            onClick={() => {
+                              const pendingData = {
+                                medicines: (enriched.medicines || []).map(m => (typeof m === 'string' ? m : m.name)),
+                                disease: enriched.diagnosis || '',
+                              };
+                              localStorage.setItem('pendingPharmacyOrder', JSON.stringify(pendingData));
+                              window.location.href = '/pharmacy';
+                            }}
+                            className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Pill className="w-4 h-4" /> Order Medicines in Pharmacy
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              localStorage.setItem('activePrescription', JSON.stringify({ ...enriched, applied_at: new Date().toISOString() }));
+                              alert('✅ Prescription context applied across your health dashboard!');
+                            }}
+                            className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Activity className="w-4 h-4" /> Apply Context
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

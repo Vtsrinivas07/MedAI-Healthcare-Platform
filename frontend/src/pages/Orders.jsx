@@ -171,7 +171,7 @@ const Orders = () => {
                           {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {new Date(order.created_at || order.order_date).toLocaleDateString()}
@@ -180,6 +180,16 @@ const Orders = () => {
                           <DollarSign className="w-4 h-4" />
                           ₹{order.total_amount || order.amount}
                         </div>
+                        {/* Payment method badge */}
+                        <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                          order.payment_method === 'online' || order.payment_status === 'paid'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                        }`}>
+                          {order.payment_method === 'online' || order.payment_status === 'paid'
+                            ? '💳 Online Payment'
+                            : '💵 Cash on Delivery'}
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4 md:mt-0">

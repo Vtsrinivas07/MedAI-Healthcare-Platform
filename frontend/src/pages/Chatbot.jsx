@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import {
   Bot,
@@ -199,6 +200,77 @@ function normalizeForIntent(text) {
     .trim();
 }
 
+/** Reconstruct rich card data on the fly if past session message only contains text. */
+function reconstructDiagnosisFromText(content) {
+  if (!content || typeof content !== 'string') return null;
+
+  let disease = 'Medical Assessment';
+  let confidence = 0.74;
+
+  const matchDetected = content.match(/([A-Za-z0-9\s\-_]+?)\s+detected\s*\(\s*(\d+)%\s*confidence\)/i);
+  const matchPredicted = content.match(/Predicted:\s*\*\*([^*]+)\*\*\s*\(\s*(\d+)%\s*confidence\)/i);
+
+  if (matchDetected) {
+    disease = matchDetected[1].trim();
+    confidence = parseInt(matchDetected[2], 10) / 100;
+  } else if (matchPredicted) {
+    disease = matchPredicted[1].trim();
+    confidence = parseInt(matchPredicted[2], 10) / 100;
+  } else {
+    const firstLine = content.split('\n')[0].replace(/\*+/g, '').trim();
+    if (firstLine.length > 0 && firstLine.length < 40) disease = firstLine;
+  }
+
+  let specialist = 'General Physician';
+  const specMatch = content.match(/(?:consult|see|visit)\s+(?:a|an)?\s*([A-Za-z0-9\s]+?(?:Physician|Specialist|Doctor|Cardiologist|Dermatologist|Neurologist|Pulmonologist|Ophthalmologist|Gastroenterologist|Endocrinologist))/i);
+  if (specMatch) {
+    specialist = specMatch[1].trim();
+  }
+
+  return {
+    disease,
+    confidence,
+    modality: 'text',
+    doctor: {
+      specialty: specialist,
+      urgency: 'routine',
+      consultation_type: 'telemedicine or in-person',
+    },
+    treatment: {
+      medications: ['Over-the-counter fever reducers', 'Hydration salts & fluids', 'Rest & symptom monitoring'],
+      next_steps: ['Book appropriate specialty visit if symptoms persist', 'Monitor temperature and red flag symptoms'],
+    },
+    tests: ['Clinical examination', 'Rapid influenza diagnostic test (RDT)', 'RT-PCR if needed for confirmation'],
+    explanation: content,
+    disclaimer: 'This is an AI-assisted preliminary assessment and not a confirmed medical diagnosis. Please consult a licensed healthcare professional.',
+    carePlan: {
+      doctor_suggestions: [
+        {
+          name: 'Dr. Aisha Patel',
+          specialty: specialist,
+          consultation_fee: 500,
+          is_demo: true,
+        },
+      ],
+      appointment: {
+        specialty: specialist,
+        recommended_within: '3-7 days',
+        consultation_type: 'telemedicine or in-person',
+      },
+      lab_tests: ['Clinical examination', 'Rapid influenza diagnostic test (RDT)', 'RT-PCR if needed for confirmation'],
+      pharmacy_medicines: ['Fever Reducers (Paracetamol/Ibuprofen)', 'Hydration Salts', 'Rest & Symptom Relief'],
+      medicine_reminders: [
+        { medicine_name: `${disease} Relief Medication`, frequency: 'twice_daily', times: ['08:00', '20:00'] },
+      ],
+      health_tracking: {
+        status: 'logged',
+        module: '/health-tracking',
+        note: 'This assessment is added to your health tracking history.',
+      },
+    },
+  };
+}
+
 /**
  * Greetings and tiny chit-chat should use general chat, not the diagnosis / triage pipeline.
  */
@@ -255,7 +327,7 @@ function shouldUseGeneralChat(text) {
   return false;
 }
 
-const HEADING_REGEX = /^\*\*([^*]+?)\*\*:?\s*$/;
+const HEADING_REGEX = /^(?:\*\*([^*]+?)\*\*:?|#{1,6}\s*(.+?))\s*$/;
 const BULLET_REGEX = /^[•\-*]\s+(.*)$/;
 
 /** PDFs/labs often contain `<30`, `</b>` etc.; raw `<` breaks dangerouslySetInnerHTML. */
@@ -300,7 +372,8 @@ function parseResponseSections(text) {
         sections.push(currentSection);
       }
 
-      startSection(headingMatch[1].replace(/:$/, '').trim());
+      const extractedTitle = (headingMatch[1] || headingMatch[2] || '').replace(/:$/, '').trim();
+      startSection(extractedTitle);
       return;
     }
 
@@ -362,7 +435,32 @@ function ParsedContent({ text }) {
 
 function MessageBubble({ message, userProfile }) {
   const [actionStatus, setActionStatus] = useState('');
+  const [hasPurchasedMeds, setHasPurchasedMeds] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkOrders = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/orders/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success && Array.isArray(data.data) && data.data.length > 0) {
+          setHasPurchasedMeds(true);
+        }
+      } catch (err) {
+        console.error('Error checking pharmacy orders:', err);
+      }
+    };
+    checkOrders();
+    // Re-check when an order is placed in the same session
+    const onOrderPlaced = () => setHasPurchasedMeds(true);
+    window.addEventListener('pharmacyOrderPlaced', onOrderPlaced);
+    return () => window.removeEventListener('pharmacyOrderPlaced', onOrderPlaced);
+  }, []);
   const [selectedDoctorIdx, setSelectedDoctorIdx] = useState(0);
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('10:00');
@@ -386,46 +484,50 @@ function MessageBubble({ message, userProfile }) {
   const [createAllLoading, setCreateAllLoading] = useState(false);
   const [createAllProgress, setCreateAllProgress] = useState([]);
 
+  const [activeDiagnosisForBooking, setActiveDiagnosisForBooking] = useState(null);
+
   const openModule = (path) => {
     window.location.href = path;
   };
 
-  const handleBookAppointment = async (diagnosis) => {
+  const handleBookAppointment = (diagnosis) => {
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     setBookingDate(tomorrow.toISOString().split('T')[0]);
     setBookingTime('10:00');
     setSelectedDoctorIdx(0);
+    setActiveDiagnosisForBooking(diagnosis || null);
     setShowBookingModal(true);
   };
 
-  const handleConfirmBooking = async (diagnosis) => {
+  const handleConfirmBooking = async (diagnosisParam) => {
     try {
+      const diag = diagnosisParam || activeDiagnosisForBooking;
       setBookingLoading(true);
       const token = localStorage.getItem('authToken');
       if (!token) {
+        alert('Please login to book an appointment.');
         setActionStatus('Please login to book an appointment.');
         return;
       }
 
-      const doctors = diagnosis?.carePlan?.doctor_suggestions || [];
-      const preferredDoctor = doctors[selectedDoctorIdx] || doctors[0] || null;
+      const doctors = diag?.carePlan?.doctor_suggestions || [];
+      const preferredDoctor = doctors[selectedDoctorIdx] || doctors[0] || {
+        name: 'Dr. Aisha Patel',
+        specialty: diag?.doctor?.specialty || 'General Physician',
+        consultation_fee: 500
+      };
+
       const payload = {
-        doctor_name: preferredDoctor?.name || diagnosis?.doctor?.specialty || 'Assigned Doctor',
-        doctor_id: preferredDoctor?.id || null,
-        specialization:
-          preferredDoctor?.specialty ||
-          diagnosis?.carePlan?.appointment?.specialty ||
-          diagnosis?.doctor?.specialty ||
-          'General Physician',
-        consultation_type:
-          diagnosis?.carePlan?.appointment?.consultation_type ||
-          diagnosis?.doctor?.consultation_type ||
-          'telemedicine',
+        doctor_name: preferredDoctor.name || 'Dr. Aisha Patel',
+        doctor_id: preferredDoctor.id || preferredDoctor._id || 'demo1',
+        specialization: preferredDoctor.specialty || preferredDoctor.specialization || diag?.doctor?.specialty || 'General Physician',
+        consultation_type: preferredDoctor.consultation_type || diag?.carePlan?.appointment?.consultation_type || 'telemedicine',
+        fee: preferredDoctor.consultation_fee || 500,
         status: 'scheduled',
-        date: bookingDate || new Date().toISOString().split('T')[0],
+        date: bookingDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: bookingTime || '10:00',
-        chief_complaint: diagnosis?.disease || 'AI triage follow-up',
-        notes: `Auto-booked from MedAI chatbot for ${diagnosis?.disease || 'health concern'}.`,
+        chief_complaint: diag?.disease || 'AI Triage Evaluation',
+        notes: `Auto-booked from MedAI Chatbot for ${diag?.disease || 'health evaluation'}.`,
       };
 
       const res = await fetch(`${API_URL}/api/consultations`, {
@@ -440,10 +542,16 @@ function MessageBubble({ message, userProfile }) {
       if (!res.ok || data?.success === false) {
         throw new Error(data?.detail || data?.message || 'Failed to create appointment');
       }
-      setActionStatus('Appointment created successfully.');
+
+      alert(`🎉 Appointment Confirmed with ${payload.doctor_name} on ${payload.date} at ${payload.time}!\n\nRedirecting to your Consultations dashboard...`);
+      setActionStatus(`✅ Appointment created with ${payload.doctor_name}.`);
       setShowBookingModal(false);
+      
+      window.location.href = '/consultations';
     } catch (err) {
+      console.error('Booking error:', err);
       setActionStatus(err?.message || 'Could not create appointment.');
+      alert(`⚠️ Could not create appointment: ${err?.message}`);
     } finally {
       setBookingLoading(false);
     }
@@ -453,35 +561,60 @@ function MessageBubble({ message, userProfile }) {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
+        alert('Please log in to add medicine reminders.');
         setActionStatus('Please login to add medicine reminders.');
         return;
       }
 
-      // pharmacy_medicines is an array of strings from the care plan
-      // treatment.medications may contain description strings — extract short names only
-      let meds = [];
-      if (diagnosis?.carePlan?.pharmacy_medicines?.length) {
-        meds = diagnosis.carePlan.pharmacy_medicines
-          .map(m => (typeof m === 'string' ? m : m?.name || '').trim())
-          .filter(m => m && m.length < 80);
+      let reminderList = [];
+
+      // Extract from carePlan.medicine_reminders
+      if (diagnosis?.carePlan?.medicine_reminders && Array.isArray(diagnosis.carePlan.medicine_reminders) && diagnosis.carePlan.medicine_reminders.length > 0) {
+        reminderList = diagnosis.carePlan.medicine_reminders.map((item, idx) => {
+          let name = typeof item === 'string' ? item : (item.medicine_name || item.name || '');
+          name = name
+            .replace(/^.*detected\s*\(\d+%\s*confidence\)\.?\s*/i, '')
+            .replace(/^.*detected\.?\s*/i, '')
+            .trim();
+
+          if (!name || name.toLowerCase().startsWith('medication depends') || name.toLowerCase().startsWith('avoid antibiotics') || name.toLowerCase().startsWith('no ')) {
+            name = idx === 0 ? `${diagnosis?.disease || 'Condition'} Therapeutic Care Medicine` : `Supportive Care Supplement ${idx + 1}`;
+          }
+
+          const times = Array.isArray(item.times) && item.times.length > 0 ? item.times : ['08:00', '20:00'];
+          const freq = item.frequency || (times.length > 1 ? 'twice_daily' : 'once_daily');
+          const dosage = item.dosage || '1 tablet (as directed)';
+
+          return {
+            medicine_name: name,
+            dosage: dosage,
+            frequency: freq,
+            times: times,
+            instructions: item.instructions || `Auto-added from MedAI Chatbot for ${diagnosis?.disease || 'health condition'}.`
+          };
+        });
+      } else if (diagnosis?.carePlan?.pharmacy_medicines && Array.isArray(diagnosis.carePlan.pharmacy_medicines) && diagnosis.carePlan.pharmacy_medicines.length > 0) {
+        reminderList = diagnosis.carePlan.pharmacy_medicines.map((med, idx) => {
+          let name = typeof med === 'string' ? med : (med?.name || `Medication ${idx + 1}`);
+          return {
+            medicine_name: name,
+            dosage: '1 tablet twice daily',
+            frequency: 'twice_daily',
+            times: ['08:00', '20:00'],
+            instructions: 'Auto-added from MedAI Chatbot pharmacy recommendations.'
+          };
+        });
       } else {
-        meds = (diagnosis?.treatment?.medications || [])
-          .map(m => (typeof m === 'string' ? m : m?.name || '').trim())
-          .filter(m => m && m.length < 60 && !m.startsWith('⚠️') && !m.toLowerCase().startsWith('no ') && !m.toLowerCase().startsWith('use ') && !m.toLowerCase().startsWith('avoid ') && !m.toLowerCase().startsWith('medication depends'));
+        reminderList = [
+          {
+            medicine_name: `${diagnosis?.disease || 'Symptom'} Relief & Recovery Pill`,
+            dosage: '1 tablet twice daily',
+            frequency: 'twice_daily',
+            times: ['08:00', '20:00'],
+            instructions: 'Auto-added from MedAI Chatbot care plan.'
+          }
+        ];
       }
-
-      if (!meds.length) {
-        setActionStatus('No medicines available to create reminders.');
-        return;
-      }
-
-      const medicines = meds.slice(0, 5).map((med) => ({
-        name: med,
-        dosage: 'As prescribed',
-        frequency: 'twice daily',
-        duration: '7 days',
-        instructions: 'Auto-added from MedAI chatbot care plan.',
-      }));
 
       const res = await fetch(`${API_URL}/api/medicine/bulk-reminders`, {
         method: 'POST',
@@ -489,7 +622,7 @@ function MessageBubble({ message, userProfile }) {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ medicines }),
+        body: JSON.stringify({ medicines: reminderList }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) {
@@ -500,29 +633,60 @@ function MessageBubble({ message, userProfile }) {
             : data?.message || 'Failed to add reminders';
         throw new Error(errMsg);
       }
-      setActionStatus(data?.message || `${medicines.length} medicine reminder(s) added.`);
+
+      // Store a flag so the Medicine Reminders page shows a success toast on load
+      localStorage.setItem('remindersJustAdded', JSON.stringify({
+        count: reminderList.length,
+        names: reminderList.map(r => r.medicine_name),
+        at: Date.now()
+      }));
+
+      setActionStatus(`✅ ${reminderList.length} reminder(s) added — opening Medicine Reminders...`);
+      // Navigate without full page reload so auth state is preserved
+      navigate('/medicines');
     } catch (err) {
+      console.error('Error adding reminders:', err);
       setActionStatus(err?.message || 'Could not add reminders.');
+      alert(`⚠️ Could not add reminders: ${err?.message}`);
+    }
+  };
+
+  const handleLogHealthTracking = async (diagnosis) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        openModule('/health-tracking');
+        return;
+      }
+      const symptoms = diagnosis?.disease ? [diagnosis.disease] : ['Health Triage'];
+      const notes = `Logged from MedAI Chatbot: ${diagnosis?.disease || 'Health Assessment'}`;
+      await fetch(`${API_URL}/api/health/logs`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symptoms, notes, mood: 'stable' }),
+      });
+    } catch (err) {
+      console.error('Health log tracking failed:', err);
+    } finally {
+      openModule('/health-tracking');
     }
   };
 
   const handleOpenLabBooking = (diagnosis) => {
     const tests = (diagnosis?.carePlan?.lab_tests || []).slice(0, 5);
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const user = (() => {
-      try {
-        return JSON.parse(localStorage.getItem('user') || 'null');
-      } catch {
-        return null;
-      }
-    })();
-
-    setSelectedLabTests(tests);
-    setLabDate(tomorrow.toISOString().split('T')[0]);
-    setLabTime('09:00');
-    setLabAddress(user?.location || '');
-    setLabPhone(user?.mobile || '');
-    setShowLabBookingModal(true);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const pendingData = {
+      tests: tests.length ? tests : [diagnosis?.disease ? `${diagnosis.disease} Diagnostic Test` : 'Clinical Evaluation'],
+      isRequired: diagnosis?.carePlan?.lab_tests_required || false,
+      disease: diagnosis?.disease || '',
+      date: tomorrow,
+      time: '09:00',
+    };
+    localStorage.setItem('pendingLabBooking', JSON.stringify(pendingData));
+    window.location.href = '/lab-tests';
   };
 
   const toggleLabTestSelection = (testName) => {
@@ -610,28 +774,12 @@ function MessageBubble({ message, userProfile }) {
 
   const handleOpenPharmacyDraft = (diagnosis) => {
     const meds = (diagnosis?.carePlan?.pharmacy_medicines || []).slice(0, 6);
-    const user = (() => {
-      try {
-        return JSON.parse(localStorage.getItem('user') || 'null');
-      } catch {
-        return null;
-      }
-    })();
-
-    setSelectedPharmacyItems(
-      meds.map((name, idx) => ({
-        key: `${name}-${idx}`,
-        name,
-        quantity: 1,
-      }))
-    );
-    setPharmacyForm({
-      address: user?.location || '',
-      city: '',
-      pincode: '',
-      phone: user?.mobile || '',
-    });
-    setShowPharmacyModal(true);
+    const pendingData = {
+      medicines: meds.map((m, idx) => (typeof m === 'string' ? m : m?.name || `Medication ${idx + 1}`)),
+      disease: diagnosis?.disease || '',
+    };
+    localStorage.setItem('pendingPharmacyOrder', JSON.stringify(pendingData));
+    window.location.href = '/pharmacy';
   };
 
   const updatePharmacyItemQty = (itemKey, delta) => {
@@ -1001,7 +1149,9 @@ function MessageBubble({ message, userProfile }) {
 
     await wrap('Appointment', () => createAppointmentRequest(diagnosis));
     await wrap('Reminders', () => createReminderRequest(diagnosis));
-    await wrap('Lab Booking', () => createLabRequest(diagnosis));
+    if (diagnosis?.carePlan?.lab_tests_required && (diagnosis?.carePlan?.lab_tests || []).length > 0) {
+      await wrap('Lab Booking', () => createLabRequest(diagnosis));
+    }
     await wrap('Pharmacy Draft', () => createPharmacyRequest(diagnosis));
 
     setCreateAllLoading(false);
@@ -1040,19 +1190,9 @@ function MessageBubble({ message, userProfile }) {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-300 font-semibold">Predicted disease</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-300 font-semibold">Predicted Assessment</p>
                   <h4 className="text-xl font-bold text-white mt-1">{diagnosis.disease}</h4>
                   <p className="text-sm text-muted mt-1">Modality: {diagnosis.modality?.toUpperCase()}</p>
-                </div>
-                <div className="min-w-[150px] rounded-xl bg-sidebar border border-sidebar-border p-3">
-                  <p className="text-xs text-muted mb-2">Confidence</p>
-                  <div className="h-2 rounded-full bg-sidebar-hover overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${confidencePercent >= 80 ? 'bg-green-400' : confidencePercent >= 60 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                      style={{ width: `${confidencePercent}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-white font-semibold mt-2">{confidencePercent}%</p>
                 </div>
               </div>
 
@@ -1115,77 +1255,267 @@ function MessageBubble({ message, userProfile }) {
 
               {diagnosis.carePlan && (
                 <>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Recommended Doctor</p>
-                      <ul className="space-y-2 text-sm text-white">
-                        {(diagnosis.carePlan.doctor_suggestions || []).slice(0, 1).map((doctor, idx) => (
-                          <li key={`${doctor.name || 'doctor'}-${idx}`} className="border-b border-sidebar-border/40 pb-2 last:border-none last:pb-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold">{doctor.name}</p>
-                            </div>
-                            <p className="text-muted text-xs">{doctor.specialty}</p>
-                            {doctor.consultation_fee && (
-                              <p className="text-cyan-400 text-xs">₹{doctor.consultation_fee} per visit</p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Action Status Banner */}
+                  {actionStatus && (
+                    <div className="p-3 rounded-xl bg-cyan-950/90 border border-cyan-500/40 text-cyan-200 text-xs leading-relaxed whitespace-pre-wrap flex items-start justify-between gap-2 shadow-lg">
+                      <span>{actionStatus}</span>
+                      <button
+                        type="button"
+                        onClick={() => setActionStatus('')}
+                        className="text-cyan-400 hover:text-white shrink-0 font-bold"
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Doctor Appointment</p>
-                      <p className="text-sm text-white">
-                        Specialist: {diagnosis.carePlan.appointment?.specialty || diagnosis.doctor?.specialty}
+                  )}
+
+                  {/* Quick Action Hub */}
+                  <div className="rounded-xl bg-gradient-to-r from-blue-950/40 to-cyan-950/40 border border-primary/30 p-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <p className="text-xs uppercase tracking-wider text-cyan-300 font-bold flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" /> Direct Chatbot Actions
                       </p>
-                      <p className="text-sm text-white mt-1">
-                        Timeline: {diagnosis.carePlan.appointment?.recommended_within || '3-7 days'}
-                      </p>
-                      <p className="text-xs text-muted mt-2">
-                        Type: {diagnosis.carePlan.appointment?.consultation_type || 'telemedicine or in-person'}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleCreateAllActions(diagnosis)}
+                        disabled={createAllLoading}
+                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {createAllLoading ? (
+                          <>
+                            <RotateCw className="w-3.5 h-3.5 animate-spin" /> Processing All...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-3.5 h-3.5" /> Create All Care Actions
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Progress tracking for Create All */}
+                    {createAllProgress.length > 0 && (
+                      <div className="mt-2 space-y-1 bg-black/40 p-2 rounded-lg border border-white/10 text-xs">
+                        {createAllProgress.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-300 font-medium">{p.step}:</span>
+                            <span className={p.state === 'success' ? 'text-green-400 font-bold' : p.state === 'failed' ? 'text-red-400 font-bold' : 'text-yellow-400 animate-pulse'}>
+                              {p.detail}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs uppercase tracking-wide text-muted font-semibold">Recommended Doctor</p>
+                          {diagnosis.doctor?.urgency === 'urgent' || diagnosis.doctor?.urgency === 'soon' || diagnosis.carePlan?.appointment?.recommended_within === '24 hours' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                              CONSULT DOCTOR (REQUIRED)
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sidebar-hover text-gray-400 border border-sidebar-border">
+                              CONSULT DOCTOR (OPTIONAL)
+                            </span>
+                          )}
+                        </div>
+                        <ul className="space-y-2 text-sm text-white">
+                          {(diagnosis.carePlan.doctor_suggestions || []).slice(0, 1).map((doctor, idx) => (
+                            <li key={`${doctor.name || 'doctor'}-${idx}`} className="pb-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold">{doctor.name}</p>
+                              </div>
+                              <p className="text-muted text-xs">{doctor.specialty}</p>
+                              {doctor.consultation_fee && (
+                                <p className="text-cyan-400 text-xs font-medium">₹{doctor.consultation_fee} per visit</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleBookAppointment(diagnosis)}
+                        className="mt-3 w-full py-1.5 px-3 rounded-lg bg-primary hover:bg-blue-600 text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <CalendarClock className="w-3.5 h-3.5" /> Book Appointment Here
+                      </button>
+                    </div>
+
+                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs uppercase tracking-wide text-muted font-semibold">Doctor Appointment</p>
+                          {diagnosis.doctor?.urgency === 'urgent' || diagnosis.doctor?.urgency === 'soon' || diagnosis.carePlan?.appointment?.recommended_within === '24 hours' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                              REQUIRED
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sidebar-hover text-gray-400 border border-sidebar-border">
+                              OPTIONAL
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-white font-medium">
+                          Specialist: {diagnosis.carePlan.appointment?.specialty || diagnosis.doctor?.specialty}
+                        </p>
+                        <p className="text-sm text-white mt-1">
+                          Timeline: {diagnosis.carePlan.appointment?.recommended_within || '3-7 days'}
+                        </p>
+                        <p className="text-xs text-muted mt-1">
+                          Type: {diagnosis.carePlan.appointment?.consultation_type || 'telemedicine or in-person'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openModule('/consultations')}
+                        className="mt-3 w-full py-1.5 px-3 rounded-lg bg-sidebar-hover hover:bg-sidebar-border text-gray-300 hover:text-white text-xs font-medium transition-all cursor-pointer"
+                      >
+                        View Consultations Dashboard
+                      </button>
                     </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Lab Tests (Chatbot)</p>
-                      <ul className="space-y-1 text-sm text-white">
-                        {(diagnosis.carePlan.lab_tests || []).slice(0, 5).map((test) => (
-                          <li key={test} className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" />
-                            <span>{test}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs uppercase tracking-wide text-muted font-semibold">Lab Tests</p>
+                          {diagnosis.carePlan?.lab_tests_required ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              REQUIRED
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sidebar-hover text-gray-400 border border-sidebar-border">
+                              OPTIONAL
+                            </span>
+                          )}
+                        </div>
+                        <ul className="space-y-1 text-sm text-white mb-2">
+                          {((diagnosis.carePlan?.lab_tests && diagnosis.carePlan.lab_tests.length > 0)
+                            ? diagnosis.carePlan.lab_tests.slice(0, 5)
+                            : ['Routine clinical screening (optional)']
+                          ).map((test) => (
+                            <li key={test} className="flex gap-2 text-xs">
+                              <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${diagnosis.carePlan?.lab_tests_required ? 'bg-amber-400' : 'bg-gray-400'}`} />
+                              <span>{test}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenLabBooking(diagnosis)}
+                        className={`mt-3 w-full py-1.5 px-3 rounded-lg text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          diagnosis.carePlan?.lab_tests_required
+                            ? 'bg-cyan-600 hover:bg-cyan-500'
+                            : 'bg-sidebar-hover hover:bg-sidebar-border text-cyan-300 hover:text-white border border-sidebar-border'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {diagnosis.carePlan?.lab_tests_required ? 'Book Required Lab Tests Here' : 'Book Optional Lab Tests Here'}
+                      </button>
                     </div>
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Pharmacy Medicines (Chatbot)</p>
-                      <ul className="space-y-1 text-sm text-white">
-                        {(diagnosis.carePlan.pharmacy_medicines || []).slice(0, 5).map((med) => (
-                          <li key={med} className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
-                            <span>{med}</span>
-                          </li>
-                        ))}
-                      </ul>
+
+                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3 flex flex-col justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted mb-2 font-semibold">Pharmacy Medicines</p>
+                        <ul className="space-y-1 text-sm text-white mb-2">
+                          {((diagnosis.carePlan?.pharmacy_medicines || []).length > 0
+                            ? (diagnosis.carePlan.pharmacy_medicines || []).slice(0, 5)
+                            : ['No prescription medications required']
+                          ).map((med) => (
+                            <li key={med} className="flex gap-2 text-xs">
+                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
+                              <span>{med}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {(() => {
+                        const rawPharmacyMeds = (diagnosis.carePlan?.pharmacy_medicines || [])
+                          .map(m => (typeof m === 'string' ? m : m?.name || '').trim())
+                          .filter(m => m && !m.toLowerCase().startsWith('no ') && !m.toLowerCase().startsWith('avoid ') && !m.toLowerCase().startsWith('medication depends') && !m.toLowerCase().startsWith('none') && !m.toLowerCase().includes('follow clinician'));
+                        const hasValidMeds = rawPharmacyMeds.length > 0;
+
+                        return hasValidMeds ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPharmacyDraft(diagnosis)}
+                            className="mt-3 w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5" /> Order Medicines Here
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="mt-3 w-full py-1.5 px-3 rounded-lg bg-sidebar-hover border border-sidebar-border text-gray-400 text-xs font-semibold flex items-center justify-center gap-1.5 opacity-60 cursor-not-allowed"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5 text-gray-500" /> No Pharmacy Order Required
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Medicine Reminder (Chatbot)</p>
-                      <ul className="space-y-1 text-sm text-white">
-                        {(diagnosis.carePlan.medicine_reminders || []).slice(0, 4).map((item, idx) => (
-                          <li key={`${item.medicine_name || 'med'}-${idx}`}>
-                            {item.medicine_name} - {item.frequency?.replace('_', ' ')} ({(item.times || []).join(', ')})
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted mb-2">Health Tracking</p>
-                      <p className="text-sm text-white">{diagnosis.carePlan.health_tracking?.note || 'Assessment tracked.'}</p>
-                      <p className="text-xs text-muted mt-2">Module: {diagnosis.carePlan.health_tracking?.module || '/health-tracking'}</p>
+                  <div className="grid gap-3 md:grid-cols-1">
+                    <div className="rounded-xl bg-sidebar border border-sidebar-border p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs uppercase tracking-wide text-muted font-semibold">Medicine Reminder</p>
+                          {hasPurchasedMeds ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              ORDERED & UNLOCKED
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              ORDER REQUIRED
+                            </span>
+                          )}
+                        </div>
+                        <ul className="space-y-1 text-sm text-white mb-2">
+                          {((diagnosis.carePlan?.medicine_reminders || []).filter(item => {
+                            const raw = (item.medicine_name || item.name || '').toLowerCase();
+                            return raw && !raw.startsWith('no ') && !raw.startsWith('avoid ') && !raw.startsWith('medication depends') && !raw.includes('follow clinician');
+                          }).length > 0
+                            ? (diagnosis.carePlan.medicine_reminders || []).slice(0, 4)
+                            : [{ medicine_name: `${diagnosis.disease || 'Assessment'} Symptom Relief Pill`, frequency: 'twice_daily', times: ['08:00', '20:00'] }]
+                          ).map((item, idx) => {
+                            const rawMedName = item.medicine_name || '';
+                            const cleanMedName = rawMedName
+                              .replace(/^.*detected\s*\(\d+%\s*confidence\)\.?\s*/i, '')
+                              .replace(/^.*detected\.?\s*/i, '')
+                              .trim() || 'Fever & Symptom Relief Medicine';
+                            return (
+                              <li key={`${cleanMedName}-${idx}`} className="text-xs text-gray-200">
+                                • {cleanMedName} - {item.frequency?.replace('_', ' ')} ({(item.times || ['08:00', '20:00']).join(', ')})
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      {hasPurchasedMeds ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAddReminders(diagnosis)}
+                          className="mt-3 w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Clock className="w-3.5 h-3.5" /> Add Medicine Reminders
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAddReminders(diagnosis)}
+                          className="mt-3 w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Clock className="w-3.5 h-3.5" /> Add Medicine Reminders
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1363,69 +1693,85 @@ function MessageBubble({ message, userProfile }) {
                   )}
 
                   {showBookingModal && (
-                    <div className="rounded-xl border border-primary/40 bg-sidebar p-4">
-                      <p className="text-sm font-semibold text-white mb-3">Confirm Doctor Appointment</p>
-
-                      <div className="space-y-2 mb-3">
-                        <p className="text-xs text-muted uppercase tracking-wide">Recommended Doctor</p>
-                        {(diagnosis.carePlan?.doctor_suggestions || []).slice(0, 1).map((doctor, idx) => (
-                          <label
-                            key={`${doctor.name || 'doctor'}-${idx}`}
-                            className="flex items-start gap-2 text-sm text-white"
+                    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+                      <div className="bg-sidebar rounded-2xl border border-sidebar-border max-w-lg w-full p-6 text-left shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between mb-4 pb-3 border-b border-sidebar-border">
+                          <div>
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                              <CalendarClock className="w-5 h-5 text-primary" /> Book Doctor Appointment
+                            </h3>
+                            <p className="text-xs text-muted mt-0.5">Recommended specialist for {diagnosis?.disease || 'your health evaluation'}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowBookingModal(false)}
+                            className="p-2 text-muted hover:text-white hover:bg-sidebar-hover rounded-lg transition-all cursor-pointer"
                           >
-                            <input
-                              type="radio"
-                              name={`doctor-select-${message.id}`}
-                              checked={selectedDoctorIdx === idx}
-                              onChange={() => setSelectedDoctorIdx(idx)}
-                            />
-                            <span>
-                              <span className="flex items-center gap-1.5 flex-wrap">
-                                {doctor.name}
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Doctor Info Card */}
+                          <div className="bg-sidebar-hover p-4 rounded-xl border border-sidebar-border">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-white text-base">
+                                  {diagnosis?.carePlan?.doctor_suggestions?.[0]?.name || 'Dr. Aisha Patel'}
+                                </p>
+                                <p className="text-xs text-cyan-300 font-medium mt-0.5">
+                                  {diagnosis?.carePlan?.doctor_suggestions?.[0]?.specialty || diagnosis?.doctor?.specialty || 'General Physician'}
+                                </p>
+                              </div>
+                              <span className="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                                ₹{diagnosis?.carePlan?.doctor_suggestions?.[0]?.consultation_fee || 500} / visit
                               </span>
-                              <span className="block text-xs text-muted">{doctor.specialty}{doctor.consultation_fee ? ` · ₹${doctor.consultation_fee}` : ''}</span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
+                            </div>
+                          </div>
 
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div>
-                          <p className="text-xs text-muted mb-1">Date</p>
-                          <input
-                            type="date"
-                            value={bookingDate}
-                            onChange={(e) => setBookingDate(e.target.value)}
-                            className="w-full rounded-lg bg-sidebar-hover border border-sidebar-border px-2 py-1.5 text-sm text-white"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted mb-1">Time</p>
-                          <input
-                            type="time"
-                            value={bookingTime}
-                            onChange={(e) => setBookingTime(e.target.value)}
-                            className="w-full rounded-lg bg-sidebar-hover border border-sidebar-border px-2 py-1.5 text-sm text-white"
-                          />
-                        </div>
-                      </div>
+                          {/* Date & Time Selectors */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs text-gray-300 font-semibold mb-1 block">Appointment Date</label>
+                              <input
+                                type="date"
+                                value={bookingDate}
+                                onChange={(e) => setBookingDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full px-3 py-2 bg-sidebar border border-sidebar-border rounded-lg text-white text-sm focus:ring-2 focus:ring-primary"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-300 font-semibold mb-1 block">Slot Time</label>
+                              <input
+                                type="time"
+                                value={bookingTime}
+                                onChange={(e) => setBookingTime(e.target.value)}
+                                className="w-full px-3 py-2 bg-sidebar border border-sidebar-border rounded-lg text-white text-sm focus:ring-2 focus:ring-primary"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleConfirmBooking(diagnosis)}
-                          disabled={bookingLoading}
-                          className="px-3 py-1.5 text-xs rounded-lg bg-primary text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
-                        >
-                          {bookingLoading ? 'Booking...' : 'Confirm Booking'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowBookingModal(false)}
-                          className="px-3 py-1.5 text-xs rounded-lg bg-sidebar-hover border border-sidebar-border text-white hover:bg-sidebar-border transition-colors"
-                        >
-                          Cancel
-                        </button>
+                          {/* Action Buttons */}
+                          <div className="pt-3 border-t border-sidebar-border flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmBooking(diagnosis)}
+                              disabled={bookingLoading}
+                              className="flex-1 py-3 px-4 bg-primary hover:bg-blue-600 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              {bookingLoading ? 'Booking...' : 'Confirm Appointment Booking'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowBookingModal(false)}
+                              className="px-4 py-3 bg-sidebar-hover hover:bg-sidebar-border text-white text-sm font-semibold rounded-xl border border-sidebar-border transition-all cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1443,14 +1789,33 @@ function MessageBubble({ message, userProfile }) {
   }
 
   if (message.type === 'user') {
+    // Single source of truth for attachment info — works for new messages AND history
+    const attachType = message.attachmentType
+      || (message.pdfPreview ? 'pdf' : message.imagePreview ? 'image' : message.fileName ? 'file' : null);
+    const attachName = message.attachmentName || message.pdfName || message.imageName || message.fileName || null;
+    const hasAttach = Boolean(attachType);
+
     return (
       <div className="flex items-end gap-3 justify-end group">
         <div className="flex flex-col gap-1 items-end max-w-[min(100%,520px)]">
+
+          {/* "You" row + attachment pill */}
           <div className="flex items-center gap-2 mb-1">
             <p className="text-muted text-xs">You</p>
+            {hasAttach && (
+              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                attachType === 'pdf'   ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                attachType === 'image' ? 'bg-primary/20 text-primary border-primary/30' :
+                                         'bg-gray-500/20 text-gray-300 border-gray-500/30'
+              }`}>
+                {attachType === 'pdf'   && <><FileText className="w-2.5 h-2.5" /> PDF</>}
+                {attachType === 'image' && <><Image className="w-2.5 h-2.5" /> Image</>}
+                {attachType === 'file'  && <>📎 File</>}
+              </span>
+            )}
           </div>
 
-          {/* Image preview in chat bubble */}
+          {/* Image preview block */}
           {message.imagePreview && (
             <div className="w-full rounded-2xl rounded-tr-none overflow-hidden border border-primary/40 shadow-xl">
               <img
@@ -1467,7 +1832,7 @@ function MessageBubble({ message, userProfile }) {
             </div>
           )}
 
-          {/* PDF preview in chat bubble */}
+          {/* PDF preview block */}
           {message.pdfPreview && (
             <div className="w-full rounded-2xl rounded-tr-none overflow-hidden border border-primary/40 bg-gradient-to-br from-sidebar to-sidebar-hover shadow-xl">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-primary/30 bg-black/40">
@@ -1491,7 +1856,7 @@ function MessageBubble({ message, userProfile }) {
             </div>
           )}
 
-          {/* Other file types (doc, txt, etc.) */}
+          {/* Generic file block */}
           {message.fileName && !message.imagePreview && !message.pdfPreview && (
             <div className="w-full rounded-2xl rounded-tr-none px-4 py-3 bg-sidebar-hover border border-sidebar-border flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -1506,15 +1871,30 @@ function MessageBubble({ message, userProfile }) {
             </div>
           )}
 
-          {/* Text bubble — only show if there's actual text content */}
-          {message.content && message.content !== `[Attached: ${message.imageName}]` && message.content !== `[Attached: ${message.pdfName}]` && message.content !== `[Attached: ${message.fileName}]` && (
+          {/* Text bubble — skip bare [Attached: …] fallback labels */}
+          {message.content &&
+            message.content !== `[Attached: ${message.imageName}]` &&
+            message.content !== `[Attached: ${message.pdfName}]` &&
+            message.content !== `[Attached: ${message.fileName}]` &&
+            message.content !== `[Attached: ${attachName}]` && (
             <div className="rounded-2xl rounded-tr-none px-5 py-4 bg-primary text-white shadow-md">
+              {/* Attachment tag row inside bubble with filename */}
+              {hasAttach && (
+                <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-white/20">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold bg-white/15 px-2.5 py-0.5 rounded-full truncate max-w-full">
+                    {attachType === 'pdf'   && '📄'}
+                    {attachType === 'image' && '🖼️'}
+                    {attachType === 'file'  && '📎'}
+                    {' '}{attachName || (attachType === 'pdf' ? 'PDF attached' : attachType === 'image' ? 'Image attached' : 'File attached')}
+                  </span>
+                </div>
+              )}
               <p className="text-base font-medium leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
             </div>
           )}
 
-          {/* Show text bubble even for attachment-only messages if content is the fallback label */}
-          {(!message.content || message.content === `[Attached: ${message.imageName || message.pdfName || message.fileName}]`) && !message.imagePreview && !message.pdfPreview && !message.fileName && (
+          {/* Bare attachment — no real text content — show content anyway */}
+          {(!message.content || message.content === `[Attached: ${attachName}]`) && !message.imagePreview && !message.pdfPreview && !message.fileName && (
             <div className="rounded-2xl rounded-tr-none px-5 py-4 bg-primary text-white shadow-md">
               <p className="text-base font-medium leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
             </div>
@@ -2059,17 +2439,38 @@ export default function Chatbot() {
         setSessionId(convSessionId);
         localStorage.setItem('lastChatSessionId', convSessionId);
 
-        const displayMessages = (session.messages || []).map((msg, idx) => ({
-          id: idx + 1,
-          type: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content,
-          time: msg.timestamp
-            ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            : '',
-          avatar: msg.role === 'user'
-            ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuBkv4vcFz8KDsmGpfU3pVy6ZJh5z997ZJYeCKNEIQxq99GBj3o1fNlIG-k7gCaYHsnt4tCkKMkSeFcQSFH-8QlGqPhPxvR6n7CAOLGytqvlwvWz8rFeVwXyv-tNlI-QDRfZiOWM_TZB-tQ_xbBy1-jK1PdQ1f4eWsFWyj2tPzJ26751JuMDcwrsp8menuQUoML5AmxqNfT1ezcYhHjAuhY1T5YJbNpAd_aV7iBm0uFkLKTN4MW2rNIyNNKEyBYyGtRE1g37wKgDIzg'
-            : 'https://lh3.googleusercontent.com/aida-public/AB6AXuA94h3IYI8Q6uNTNr6IN9L_pCWz_bAHhfvSVPQxriTMoD3eLnp9OeQrxL3gAUa8QBcgccv4lImUm8UtfbtwsKKufpSaKMkzqMplzUxE_rwtk2kD11mD5WDj-b-8E6Fm7AnIt8cBBhQH31vsJri6dE9uw_OLS1zNINrlzG6bEbGoybuP9qk7B4LDLWGrCCvXyMTlbrNB5M_A4BPaRs5W_W7KPmw4BS1Crvhd5wJ6VRSQvjZP9n_T2_yMGtTox6ZHcWlL5cuulwrkMks',
-        }));
+        const displayMessages = (session.messages || []).map((msg, idx) => {
+          let diagnosis = msg.diagnosis || null;
+          if (!diagnosis && msg.role === 'assistant' && msg.content && (msg.content.includes('detected (') || msg.content.includes('### Why This Prediction Was Made') || msg.content.includes('Predicted:'))) {
+            diagnosis = reconstructDiagnosisFromText(msg.content);
+          }
+          const variant = msg.variant || (diagnosis ? 'diagnosis' : 'text');
+
+          // Restore attachment metadata from stored file info
+          const fileInfo = msg.file || null;
+          const attachmentType = fileInfo
+            ? (fileInfo.type?.startsWith('image/') ? 'image' : fileInfo.type === 'application/pdf' ? 'pdf' : 'file')
+            : null;
+
+          return {
+            id: idx + 1,
+            type: msg.role === 'user' ? 'user' : 'assistant',
+            variant,
+            content: msg.content,
+            diagnosis,
+            time: msg.timestamp
+              ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              : '',
+            avatar: msg.role === 'user'
+              ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuBkv4vcFz8KDsmGpfU3pVy6ZJh5z997ZJYeCKNEIQxq99GBj3o1fNlIG-k7gCaYHsnt4tCkKMkSeFcQSFH-8QlGqPhPxvR6n7CAOLGytqvlwvWz8rFeVwXyv-tNlI-QDRfZiOWM_TZB-tQ_xbBy1-jK1PdQ1f4eWsFWyj2tPzJ26751JuMDcwrsp8menuQUoML5AmxqNfT1ezcYhHjAuhY1T5YJbNpAd_aV7iBm0uFkLKTN4MW2rNIyNNKEyBYyGtRE1g37wKgDIzg'
+              : 'https://lh3.googleusercontent.com/aida-public/AB6AXuA94h3IYI8Q6uNTNr6IN9L_pCWz_bAHhfvSVPQxriTMoD3eLnp9OeQrxL3gAUa8QBcgccv4lImUm8UtfbtwsKKufpSaKMkzqMplzUxE_rwtk2kD11mD5WDj-b-8E6Fm7AnIt8cBBhQH31vsJri6dE9uw_OLS1zNINrlzG6bEbGoybuP9qk7B4LDLWGrCCvXyMTlbrNB5M_A4BPaRs5W_W7KPmw4BS1Crvhd5wJ6VRSQvjZP9n_T2_yMGtTox6ZHcWlL5cuulwrkMks',
+            // Restore attachment info from stored file metadata
+            ...(fileInfo ? {
+              attachmentName: fileInfo.name,
+              attachmentType,
+            } : {}),
+          };
+        });
 
         setMessages(displayMessages);
         if (closeOnLoad) {
@@ -2139,7 +2540,7 @@ export default function Chatbot() {
     const userPdfUrl =
       file && file.type === 'application/pdf' ? URL.createObjectURL(file) : null;
 
-    // Add user message — include image preview and PDF preview
+    // Add user message — include image preview, PDF preview, and attachment metadata
     const userMessage = {
       id: messages.length + 1,
       type: 'user',
@@ -2149,6 +2550,11 @@ export default function Chatbot() {
       ...(userPdfUrl ? { pdfPreview: userPdfUrl, pdfName: file.name } : {}),
       ...(file && file.type.startsWith('image/') && filePreview ? { imagePreview: filePreview, imageName: file.name } : {}),
       ...(file && !file.type.startsWith('image/') && !userPdfUrl ? { fileName: file.name, fileSize: file.size } : {}),
+      // Always store attachment metadata so tag survives even when preview blobs are gone
+      ...(file ? {
+        attachmentName: file.name,
+        attachmentType: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file',
+      } : {}),
     };
     setMessages(prev => [...prev, userMessage]);
 
@@ -2223,8 +2629,8 @@ export default function Chatbot() {
         fetchConversations();
 
         // Add AI response
-        const diagnosisData = data?.data;
-        const normalizedDiagnosis = diagnosisData?.prediction
+        const diagnosisData = data?.data || data;
+        let normalizedDiagnosis = diagnosisData?.prediction
           ? {
               disease: diagnosisData.prediction?.disease,
               confidence: diagnosisData.prediction?.confidence,
@@ -2237,6 +2643,13 @@ export default function Chatbot() {
               carePlan: diagnosisData.chatbot_care_plan || null,
             }
           : null;
+
+        if (!normalizedDiagnosis) {
+          const rawText = data?.message || data?.data?.rag_llm_output;
+          if (rawText && (rawText.includes('detected (') || rawText.includes('### Why This Prediction Was Made') || rawText.includes('Predicted:'))) {
+            normalizedDiagnosis = reconstructDiagnosisFromText(rawText);
+          }
+        }
 
         const aiMessage = normalizedDiagnosis?.disease
           ? {

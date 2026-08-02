@@ -137,12 +137,12 @@ const Help = () => {
           <div className="mb-8">
             <button
               onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Profile
             </button>
-            <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
+            <h1 className="text-gray-900 dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
               Need Help?
             </h1>
             <p className="text-muted text-lg font-medium leading-relaxed">
@@ -158,12 +158,12 @@ const Help = () => {
                 <button
                   key={index}
                   onClick={method.action}
-                  className="bg-card-dark rounded-xl p-6 hover:bg-gray-800 transition text-left"
+                  className="bg-white dark:bg-card-dark rounded-xl p-6 border border-gray-200 dark:border-sidebar-border hover:border-primary/40 hover:shadow-md transition text-left"
                 >
                   <IconComponent className={`w-8 h-8 ${method.color} mb-3`} />
-                  <h3 className="text-white font-semibold mb-1">{method.title}</h3>
-                  <p className="text-gray-300 text-sm mb-1">{method.details}</p>
-                  <p className="text-gray-500 text-xs">{method.subtext}</p>
+                  <h3 className="text-gray-900 dark:text-white font-semibold mb-1">{method.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-1">{method.details}</p>
+                  <p className="text-gray-400 text-xs">{method.subtext}</p>
                 </button>
               );
             })}
@@ -202,10 +202,10 @@ const Help = () => {
           </div>
 
           {/* FAQ Section */}
-          <div className="bg-card-dark rounded-xl p-6 md:p-8">
+          <div className="bg-white dark:bg-card-dark rounded-xl p-6 md:p-8 border border-gray-200 dark:border-sidebar-border">
             <div className="flex items-center gap-3 mb-6">
               <HelpCircle className="w-8 h-8 text-primary" />
-              <h2 className="text-2xl font-bold text-white">Frequently Asked Questions</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
             </div>
 
             {/* Search */}
@@ -216,7 +216,7 @@ const Help = () => {
                 placeholder="Search FAQs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary transition"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition"
               />
             </div>
 
@@ -227,7 +227,7 @@ const Help = () => {
                 className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
                   searchQuery === ''
                     ? 'bg-primary text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 All
@@ -239,7 +239,7 @@ const Help = () => {
                   className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
                     searchQuery === category
                       ? 'bg-primary text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
                   {category}
@@ -252,17 +252,17 @@ const Help = () => {
               {filteredFaqs.map((faq) => (
                 <div
                   key={faq.id}
-                  className="bg-gray-800/50 rounded-lg overflow-hidden"
+                  className="bg-gray-50 dark:bg-gray-800/50 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
                 >
                   <button
                     onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-800 transition"
+                    className="w-full flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                   >
                     <div className="flex items-start gap-3 text-left flex-1">
-                      <span className="text-xs font-semibold text-primary bg-primary/20 px-2 py-1 rounded mt-1">
+                      <span className="text-xs font-semibold text-primary bg-primary/10 dark:bg-primary/20 px-2 py-1 rounded mt-1">
                         {faq.category}
                       </span>
-                      <span className="text-white font-medium">{faq.question}</span>
+                      <span className="text-gray-900 dark:text-white font-medium">{faq.question}</span>
                     </div>
                     {expandedFaq === faq.id ? (
                       <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
@@ -272,7 +272,7 @@ const Help = () => {
                   </button>
                   {expandedFaq === faq.id && (
                     <div className="px-4 pb-4 pt-0">
-                      <p className="text-gray-400 text-sm leading-relaxed ml-20">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed ml-20">
                         {faq.answer}
                       </p>
                     </div>
@@ -283,19 +283,19 @@ const Help = () => {
 
             {filteredFaqs.length === 0 && (
               <div className="text-center py-8">
-                <HelpCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No FAQs found matching your search</p>
+                <HelpCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400">No FAQs found matching your search</p>
               </div>
             )}
           </div>
 
           {/* Support Hours */}
-          <div className="mt-6 bg-gray-800/50 rounded-xl p-6">
+          <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-start gap-3">
               <Clock className="w-6 h-6 text-primary mt-1" />
               <div>
-                <h3 className="text-white font-semibold mb-2">Support Hours</h3>
-                <div className="text-sm text-gray-400 space-y-1">
+                <h3 className="text-gray-900 dark:text-white font-semibold mb-2">Support Hours</h3>
+                <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
                   <p>Monday - Saturday: 9:00 AM - 9:00 PM IST</p>
                   <p>Sunday: 10:00 AM - 6:00 PM IST</p>
                   <p className="text-primary mt-2">AI Chatbot available 24/7</p>

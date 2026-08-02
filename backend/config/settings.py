@@ -27,7 +27,11 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = "http://localhost:5173/auth/callback"
     
     # AI Provider Configuration
-    AI_PROVIDER: str = "gemini"  # Options: "gemini", "huggingface", "openai", "ollama"
+    AI_PROVIDER: str = "gemini"  # Options: "gemini", "groq", "huggingface", "openai", "ollama"
+    
+    # Groq (FREE & FAST)
+    GROQ_API_KEY: Optional[str] = None
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
     
     # Google Gemini (FREE - Fast & High Quality)
     GEMINI_API_KEY: Optional[str] = None

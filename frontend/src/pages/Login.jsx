@@ -225,7 +225,7 @@ export default function Login() {
                 />
               </div>
               <p className="text-xs text-gray-500 dark:text-muted">
-                Didn't receive OTP?{' '}
+                Didn&apos;t receive OTP?{' '}
                 <button
                   type="button"
                   onClick={handleRequestOTP}

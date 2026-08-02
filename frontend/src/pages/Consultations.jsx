@@ -93,11 +93,8 @@ export default function Consultations() {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/api/consultations`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         const data = await response.json();
         const apiConsultations = data.consultations || data.data || [];
@@ -106,7 +103,6 @@ export default function Consultations() {
         setConsultations(MOCK_CONSULTATIONS);
       }
     } catch (error) {
-      console.error('Error fetching consultations:', error);
       setConsultations(MOCK_CONSULTATIONS);
     } finally {
       setLoading(false);
@@ -115,54 +111,44 @@ export default function Consultations() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'completed':   return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
       case 'upcoming':
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'in-progress':
-        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
+      case 'scheduled':   return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'in-progress': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'cancelled':   return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default:            return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-5 h-5" />;
-      case 'cancelled':
-        return <XCircle className="w-5 h-5" />;
-      case 'in-progress':
-        return <AlertCircle className="w-5 h-5" />;
-      default:
-        return <Clock className="w-5 h-5" />;
+      case 'completed':   return <CheckCircle className="w-5 h-5" />;
+      case 'cancelled':   return <XCircle className="w-5 h-5" />;
+      case 'in-progress': return <AlertCircle className="w-5 h-5" />;
+      default:            return <Clock className="w-5 h-5" />;
     }
   };
 
   const getTypeIcon = (type) => {
     const t = (type || '').toLowerCase();
-    if (t.includes('video')) return <Video className="w-5 h-5" />;
-    if (t.includes('voice') || t.includes('phone')) return <Phone className="w-5 h-5" />;
+    if (t.includes('video'))                          return <Video className="w-5 h-5" />;
+    if (t.includes('voice') || t.includes('phone'))  return <Phone className="w-5 h-5" />;
     if (t.includes('message') || t.includes('chat')) return <MessageSquare className="w-5 h-5" />;
     return <Stethoscope className="w-5 h-5" />;
   };
 
-  // Normalize consultation type label for display
   const getTypeLabel = (type) => {
     const t = (type || '').toLowerCase();
-    if (t.includes('video')) return 'Video';
-    if (t.includes('voice') || t.includes('phone')) return 'Voice Call';
+    if (t.includes('video'))                          return 'Video';
+    if (t.includes('voice') || t.includes('phone'))  return 'Voice Call';
     if (t.includes('message') || t.includes('chat')) return 'Chat';
     if (t.includes('in-person') || t.includes('person')) return 'In-Person';
     return type || 'In-Person';
   };
 
-  const filteredConsultations = consultations.filter(consultation => {
+  const filteredConsultations = consultations.filter(c => {
     if (filter === 'all') return true;
-    return consultation.status?.toLowerCase() === filter;
+    return c.status?.toLowerCase() === filter;
   });
 
   if (loading) {
@@ -183,12 +169,12 @@ export default function Consultations() {
           <div className="mb-8">
             <button
               onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Profile
             </button>
-            <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
+            <h1 className="text-gray-900 dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
               My Consultations
             </h1>
             <p className="text-muted text-lg font-medium leading-relaxed">
@@ -205,7 +191,7 @@ export default function Consultations() {
                 className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
                   filter === status
                     ? 'bg-primary text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
@@ -215,12 +201,12 @@ export default function Consultations() {
 
           {/* Consultations List */}
           {filteredConsultations.length === 0 ? (
-            <div className="bg-card-dark rounded-xl p-12 text-center">
-              <Stethoscope className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+            <div className="bg-white dark:bg-card-dark rounded-xl p-12 text-center border border-gray-200 dark:border-sidebar-border">
+              <Stethoscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 {filter === 'all' ? 'No consultations yet' : `No ${filter} consultations`}
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
                 {filter === 'all'
                   ? 'Book a consultation with a doctor to get started'
                   : `You don't have any ${filter} consultations`}
@@ -237,13 +223,12 @@ export default function Consultations() {
               {filteredConsultations.map((consultation) => (
                 <div
                   key={consultation._id || consultation.id}
-                  className="bg-card-dark rounded-xl p-6 hover:bg-gray-800 transition"
+                  className="bg-white dark:bg-card-dark rounded-xl p-6 border border-gray-200 dark:border-sidebar-border hover:border-primary/40 hover:shadow-md transition"
                 >
-                  {/* Consultation Header */}
                   <div className="flex flex-col md:flex-row md:items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           {consultation.doctor_name || 'Dr. Unknown'}
                         </h3>
                         <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(consultation.status)}`}>
@@ -251,10 +236,10 @@ export default function Consultations() {
                           {consultation.status?.charAt(0).toUpperCase() + consultation.status?.slice(1)}
                         </span>
                       </div>
-                      <p className="text-gray-400 mb-3">
+                      <p className="text-gray-500 dark:text-gray-400 mb-3">
                         {consultation.specialization || 'General Physician'}
                       </p>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           {new Date(consultation.date || consultation.appointment_date).toLocaleDateString()}
@@ -264,9 +249,9 @@ export default function Consultations() {
                           {consultation.time || new Date(consultation.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div className={`flex items-center gap-2 px-2 py-1 rounded-lg ${
-                          consultation.consultation_type?.toLowerCase().includes('video') ? 'bg-blue-900/30 text-blue-400' :
-                          consultation.consultation_type?.toLowerCase().includes('voice') || consultation.consultation_type?.toLowerCase().includes('phone') ? 'bg-green-900/30 text-green-400' :
-                          'bg-purple-900/30 text-purple-400'
+                          consultation.consultation_type?.toLowerCase().includes('video') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          consultation.consultation_type?.toLowerCase().includes('voice') || consultation.consultation_type?.toLowerCase().includes('phone') ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                         }`}>
                           {getTypeIcon(consultation.consultation_type)}
                           {getTypeLabel(consultation.consultation_type)}
@@ -274,14 +259,13 @@ export default function Consultations() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4 md:mt-0">
-                      {(consultation.status === 'upcoming' || consultation.status === 'scheduled') ? (
+                      {(consultation.status === 'upcoming' || consultation.status === 'scheduled') && (
                         <button
                           onClick={() => {
                             const t = (consultation.consultation_type || '').toLowerCase();
                             if (t.includes('video') && consultation.meeting_link) {
                               window.open(consultation.meeting_link, '_blank');
                             } else {
-                              // Navigate to chatbot for all other types
                               navigate('/chatbot');
                             }
                           }}
@@ -289,10 +273,10 @@ export default function Consultations() {
                         >
                           Join Now
                         </button>
-                      ) : null}
+                      )}
                       <button
                         onClick={() => setSelectedConsultation(consultation)}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition flex items-center gap-2"
+                        className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-white rounded-lg font-medium transition flex items-center gap-2"
                       >
                         <FileText className="w-4 h-4" />
                         View Details
@@ -300,27 +284,24 @@ export default function Consultations() {
                     </div>
                   </div>
 
-                  {/* Consultation Details */}
                   {consultation.reason && (
-                    <div className="bg-gray-800/50 rounded-lg p-4 mb-3">
-                      <h4 className="text-white font-medium mb-2">Reason for Visit</h4>
-                      <p className="text-gray-400 text-sm">{consultation.reason}</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 mb-3 border border-gray-200 dark:border-sidebar-border">
+                      <h4 className="text-gray-900 dark:text-white font-medium mb-2">Reason for Visit</h4>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">{consultation.reason}</p>
                     </div>
                   )}
 
-                  {/* Prescription Link */}
                   {consultation.status === 'completed' && consultation.prescription_id && (
-                    <div className="flex items-center gap-2 text-sm text-primary hover:text-blue-400 cursor-pointer"
+                    <div className="flex items-center gap-2 text-sm text-primary hover:text-blue-600 cursor-pointer"
                          onClick={() => navigate(`/prescriptions/${consultation.prescription_id}`)}>
                       <FileText className="w-4 h-4" />
                       View Prescription
                     </div>
                   )}
 
-                  {/* Notes or Diagnosis */}
                   {consultation.notes && (
-                    <div className="mt-3 text-sm text-gray-400">
-                      <span className="font-medium text-white">Notes: </span>
+                    <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                      <span className="font-medium text-gray-900 dark:text-white">Notes: </span>
                       {consultation.notes}
                     </div>
                   )}
@@ -338,14 +319,14 @@ export default function Consultations() {
           onClick={() => setSelectedConsultation(null)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h3 className="text-white font-bold text-lg">Consultation Details</h3>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-gray-900 dark:text-white font-bold text-lg">Consultation Details</h3>
               <button
                 onClick={() => setSelectedConsultation(null)}
-                className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
               >
                 <XCircle className="w-5 h-5" />
               </button>
@@ -353,49 +334,41 @@ export default function Consultations() {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white font-semibold text-base">{selectedConsultation.doctor_name || 'Doctor'}</p>
-                  <p className="text-gray-400 text-sm">{selectedConsultation.specialization || 'General Physician'}</p>
+                  <p className="text-gray-900 dark:text-white font-semibold text-base">{selectedConsultation.doctor_name || 'Doctor'}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">{selectedConsultation.specialization || 'General Physician'}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedConsultation.status)}`}>
                   {selectedConsultation.status}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Date</p>
-                  <p className="text-white font-medium">{selectedConsultation.date || '—'}</p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Time</p>
-                  <p className="text-white font-medium">{selectedConsultation.time || '—'}</p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Type</p>
-                  <p className="text-white font-medium">{getTypeLabel(selectedConsultation.consultation_type)}</p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Fee</p>
-                  <p className="text-white font-medium">{selectedConsultation.fee ? `₹${selectedConsultation.fee}` : '—'}</p>
-                </div>
+                {[
+                  { label: 'Date', value: selectedConsultation.date || '—' },
+                  { label: 'Time', value: selectedConsultation.time || '—' },
+                  { label: 'Type', value: getTypeLabel(selectedConsultation.consultation_type) },
+                  { label: 'Fee', value: selectedConsultation.fee ? `₹${selectedConsultation.fee}` : '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">{label}</p>
+                    <p className="text-gray-900 dark:text-white font-medium">{value}</p>
+                  </div>
+                ))}
               </div>
               {selectedConsultation.chief_complaint && (
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Chief Complaint</p>
-                  <p className="text-white text-sm">{selectedConsultation.chief_complaint}</p>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Chief Complaint</p>
+                  <p className="text-gray-900 dark:text-white text-sm">{selectedConsultation.chief_complaint}</p>
                 </div>
               )}
               {selectedConsultation.notes && (
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Notes</p>
-                  <p className="text-white text-sm leading-relaxed">{selectedConsultation.notes}</p>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Notes</p>
+                  <p className="text-gray-900 dark:text-white text-sm leading-relaxed">{selectedConsultation.notes}</p>
                 </div>
               )}
               {(selectedConsultation.status === 'scheduled' || selectedConsultation.status === 'upcoming') && (
                 <button
-                  onClick={() => {
-                    setSelectedConsultation(null);
-                    navigate('/chatbot');
-                  }}
+                  onClick={() => { setSelectedConsultation(null); navigate('/chatbot'); }}
                   className="w-full py-3 bg-primary hover:bg-blue-600 text-white rounded-xl font-semibold transition"
                 >
                   Join Consultation

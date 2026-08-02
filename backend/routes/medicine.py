@@ -21,8 +21,14 @@ async def create_reminder(
     db = get_database()
     user_id = str(current_user["_id"])
     
-    # Convert time strings to time objects
-    times = [dt_time.fromisoformat(t) for t in reminder_data.times]
+    # Convert time strings to "HH:MM" strings (stored consistently as strings)
+    times = []
+    for t in reminder_data.times:
+        try:
+            parsed = dt_time.fromisoformat(t)
+            times.append(parsed.strftime("%H:%M"))
+        except Exception:
+            times.append("08:00")
     
     reminder_dict = {
         "user_id": user_id,
@@ -43,7 +49,70 @@ async def create_reminder(
     
     return MedicineReminder(**reminder_dict)
 
-@router.get("/reminders", response_model=List[MedicineReminder])
+@router.post("/bulk-reminders")
+async def bulk_create_reminders(
+    payload: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create multiple medicine reminders at once from chatbot care plan"""
+    db = get_database()
+    user_id = str(current_user["_id"])
+    med_list = payload.get("medicines") or payload.get("items") or []
+    if isinstance(payload, list):
+        med_list = payload
+        
+    inserted_ids = []
+    now = datetime.utcnow()
+    
+    for item in med_list:
+        if isinstance(item, str):
+            med_name = item.strip()
+            dosage = "As prescribed"
+            freq = "twice_daily"
+            instructions = "Auto-added from MedAI Chatbot"
+            times_raw = ["08:00", "20:00"]
+        else:
+            med_name = item.get("medicine_name") or item.get("name") or "Prescription Medication"
+            dosage = item.get("dosage") or "As prescribed"
+            freq = item.get("frequency") or "twice_daily"
+            instructions = item.get("instructions") or item.get("notes") or "Auto-added from MedAI Chatbot"
+            times_raw = item.get("times") or ["08:00", "20:00"]
+            
+        times_parsed = []
+        for t in times_raw:
+            try:
+                # Always store as "HH:MM" string for consistent retrieval
+                if isinstance(t, dt_time):
+                    times_parsed.append(t.strftime("%H:%M"))
+                else:
+                    parsed = dt_time.fromisoformat(str(t).strip())
+                    times_parsed.append(parsed.strftime("%H:%M"))
+            except Exception:
+                times_parsed.append("08:00")
+        
+        doc = {
+            "user_id": user_id,
+            "medicine_name": str(med_name).strip(),
+            "dosage": str(dosage).strip(),
+            "frequency": str(freq).replace(" ", "_"),
+            "times": times_parsed,
+            "start_date": now,
+            "end_date": None,
+            "notes": instructions,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        }
+        res = await db.medicine_reminders.insert_one(doc)
+        inserted_ids.append(str(res.inserted_id))
+        
+    return {
+        "success": True,
+        "message": f"{len(inserted_ids)} medicine reminder(s) created successfully.",
+        "inserted_ids": inserted_ids
+    }
+
+@router.get("/reminders")
 async def get_reminders(
     active_only: bool = True,
     current_user: dict = Depends(get_current_user)
@@ -58,10 +127,29 @@ async def get_reminders(
     
     reminders = await db.medicine_reminders.find(query).sort("created_at", -1).to_list(100)
     
+    result = []
     for reminder in reminders:
         reminder["_id"] = str(reminder["_id"])
+        # Normalize times to "HH:MM" strings regardless of how they were stored
+        raw_times = reminder.get("times") or []
+        normalized_times = []
+        for t in raw_times:
+            if isinstance(t, dt_time):
+                normalized_times.append(t.strftime("%H:%M"))
+            elif isinstance(t, str):
+                # strip seconds if present: "08:00:00" → "08:00"
+                normalized_times.append(t[:5])
+            else:
+                normalized_times.append("08:00")
+        reminder["times"] = normalized_times if normalized_times else ["08:00"]
+        # Normalize dates to ISO strings
+        for field in ("start_date", "end_date", "created_at", "updated_at"):
+            val = reminder.get(field)
+            if isinstance(val, datetime):
+                reminder[field] = val.isoformat()
+        result.append(reminder)
     
-    return reminders
+    return result
 
 @router.get("/reminders/{reminder_id}", response_model=MedicineReminder)
 async def get_reminder(
@@ -96,7 +184,13 @@ async def update_reminder(
     db = get_database()
     user_id = str(current_user["_id"])
     
-    times = [dt_time.fromisoformat(t) for t in reminder_data.times]
+    times = []
+    for t in reminder_data.times:
+        try:
+            parsed = dt_time.fromisoformat(t)
+            times.append(parsed.strftime("%H:%M"))
+        except Exception:
+            times.append("08:00")
     
     update_dict = {
         "medicine_name": reminder_data.medicine_name,
@@ -155,18 +249,42 @@ async def log_medicine_intake(
     """Log medicine intake"""
     db = get_database()
     user_id = str(current_user["_id"])
-    
-    log_dict = {
-        "reminder_id": medicine_log.reminder_id,
-        "user_id": user_id,
-        "taken_at": medicine_log.taken_at,
-        "status": medicine_log.status,
-        "notes": medicine_log.notes
-    }
-    
-    await db.medicine_logs.insert_one(log_dict)
-    
+
+    # Upsert: one log per reminder per day (today)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    await db.medicine_logs.update_one(
+        {
+            "reminder_id": medicine_log.reminder_id,
+            "user_id": user_id,
+            "taken_at": {"$gte": today_start},
+        },
+        {
+            "$set": {
+                "reminder_id": medicine_log.reminder_id,
+                "user_id": user_id,
+                "taken_at": medicine_log.taken_at or datetime.utcnow(),
+                "status": medicine_log.status,
+                "notes": medicine_log.notes,
+            }
+        },
+        upsert=True,
+    )
     return medicine_log
+
+
+@router.get("/logs/today")
+async def get_today_logs(
+    current_user: dict = Depends(get_current_user)
+):
+    """Return reminder_ids the user has marked taken today."""
+    db = get_database()
+    user_id = str(current_user["_id"])
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    logs = await db.medicine_logs.find(
+        {"user_id": user_id, "status": "taken", "taken_at": {"$gte": today_start}}
+    ).to_list(200)
+    taken_ids = list({str(l["reminder_id"]) for l in logs})
+    return {"taken_reminder_ids": taken_ids}
 
 
 @router.post("/reminders/{reminder_id}/test-notification")

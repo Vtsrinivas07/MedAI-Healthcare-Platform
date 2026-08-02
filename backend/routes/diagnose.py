@@ -11,6 +11,7 @@ from config.database import get_database
 from middleware.auth import get_current_user
 from services.medical_image_pipeline import get_medical_image_pipeline
 from models.disease_mappings import get_full_disease_context
+from routes.chat import get_ai_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -188,6 +189,7 @@ async def _generate_explanation(
         ])
         
         context = "\n".join(context_parts)
+        ai_service = get_ai_service()
         
         # Try to use RAG for additional medical context
         if ai_service.rag_enabled:

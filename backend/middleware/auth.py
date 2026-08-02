@@ -1,5 +1,6 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security.utils import get_authorization_scheme_param
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from typing import Optional
@@ -8,7 +9,7 @@ from bson import ObjectId
 from config.settings import settings
 from config.database import get_database
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
@@ -40,8 +41,15 @@ def create_refresh_token(data: dict):
     )
     return encoded_jwt
 
-async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     """Verify JWT token and return user data"""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated. Please log in.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token = credentials.credentials
     
     try:
@@ -63,7 +71,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
+            detail="Invalid or expired token. Please log in again."
         )
     except Exception:
         raise HTTPException(

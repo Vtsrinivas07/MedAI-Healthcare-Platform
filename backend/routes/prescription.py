@@ -115,37 +115,71 @@ Return ONLY the JSON object, no other text."""
             parsed = json.loads(json_match.group())
         else:
             parsed = json.loads(clean)
-    except Exception:
-        parsed = {
-            "doctor_name": "",
-            "patient_name": "",
-            "diagnosis": "Extracted from uploaded prescription",
-            "date": datetime.utcnow().isoformat(),
-            "medicines": [],
-            "lab_tests": [],
-            "dietary_advice": "",
-            "notes": raw_text[:500]
-        }
+    except Exception as e:
+        print(f"[WARN] AI prescription JSON parsing failed: {e}")
+        parsed = {}
 
-    # Always save to DB when save_to_db is requested (even if medicines list is empty)
-    prescription_id = None
-    if save_to_db:
-        pres_doc = {
-            "patient_id": str(current_user["_id"]),
-            "doctor_id": str(current_user["_id"]),
-            "patient_name": current_user.get("name", ""),
-            "doctor_name": parsed.get("doctor_name") or "Self-upload",
-            "diagnosis": parsed.get("diagnosis", "") or "Uploaded prescription",
-            "medicines": parsed.get("medicines", []),
-            "lab_tests": parsed.get("lab_tests", []),
-            "dietary_advice": parsed.get("dietary_advice", ""),
-            "notes": parsed.get("notes", ""),
-            "date": datetime.utcnow(),
-            "status": "active",
-            "source": "uploaded"
-        }
-        result = await db.prescriptions.insert_one(pres_doc)
-        prescription_id = str(result.inserted_id)
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    # Extract diagnosis via regex fallback if missing
+    if not parsed.get("diagnosis") or parsed.get("diagnosis") == "Extracted from uploaded prescription":
+        diag_match = re.search(r'(?:DIAGNOSIS|Diagnosis|Indication|Condition)\s*[:\-]\s*([^\n\r\|]+)', raw_text, re.IGNORECASE)
+        if diag_match:
+            parsed["diagnosis"] = diag_match.group(1).strip()
+        else:
+            parsed["diagnosis"] = "Uploaded Prescription"
+
+    # Extract doctor name via regex if missing
+    if not parsed.get("doctor_name"):
+        doc_match = re.search(r'(?:Dr\.|Doctor)\s+([A-Za-z\s\.]+?)(?:MBBS|MD|Clinic|Patient|Date|\d|\n|$)', raw_text)
+        if doc_match:
+            parsed["doctor_name"] = doc_match.group(1).strip()
+
+    # Extract medicines via regex fallback if AI missed them
+    if not parsed.get("medicines") or len(parsed.get("medicines")) == 0:
+        found_meds = []
+        # Matches patterns like: 1. Metformin 500mg ... or Rx 1. Metformin 500mg
+        matches = re.findall(r'(?:Rx\s*)?(?:\d+[\.\)]\s*)?([A-Za-z0-9\s\-]+?\b\d+\s*(?:mg|g|mcg|ml|IU|iu))\b\s*(?:Dose|frequency)?\s*[:\-]?\s*([^\n\r\|]+)?', raw_text, re.IGNORECASE)
+        for m in matches:
+            m_name = m[0].strip()
+            m_info = m[1].strip() if len(m) > 1 and m[1] else ""
+            if m_name and len(m_name) > 2 and not m_name.lower().startswith('date'):
+                freq = "Once daily"
+                if "twice" in m_info.lower() or "2x" in m_info.lower() or "bid" in m_info.lower():
+                    freq = "Twice daily"
+                elif "weekly" in m_info.lower():
+                    freq = "Once weekly"
+                found_meds.append({
+                    "name": m_name,
+                    "dosage": "",
+                    "frequency": freq,
+                    "duration": "As advised",
+                    "times": ["08:00", "20:00"] if freq == "Twice daily" else ["08:00"],
+                    "instructions": m_info[:100] if m_info else "Take as directed"
+                })
+        if found_meds:
+            parsed["medicines"] = found_meds
+
+    # Always save to DB on upload
+    pres_doc = {
+        "patient_id": str(current_user["_id"]),
+        "doctor_id": str(current_user["_id"]),
+        "patient_name": current_user.get("name", ""),
+        "doctor_name": parsed.get("doctor_name") or "Prescription Document",
+        "diagnosis": parsed.get("diagnosis", "") or "Uploaded Prescription",
+        "medicines": parsed.get("medicines", []),
+        "lab_tests": parsed.get("lab_tests", []),
+        "dietary_advice": parsed.get("dietary_advice", ""),
+        "notes": parsed.get("notes", ""),
+        "filename": file.filename if (file and file.filename) else "Pasted Prescription",
+        "raw_text": raw_text[:500] if raw_text else "",
+        "date": datetime.utcnow(),
+        "status": "active",
+        "source": "uploaded"
+    }
+    result = await db.prescriptions.insert_one(pres_doc)
+    prescription_id = str(result.inserted_id)
 
     return {
         "success": True,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from typing import List, Optional
 from datetime import datetime
 from config.database import get_database
@@ -68,14 +68,23 @@ async def create_lab_test(
 # Bookings
 @router.post("/bookings")
 async def create_booking(
-    booking: LabTestBooking,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     db = Depends(get_database)
 ):
     """Create a new lab test booking"""
     try:
-        booking_dict = booking.dict(by_alias=True, exclude={"id"})
+        try:
+            booking_dict = await request.json()
+        except Exception:
+            booking_dict = {}
+        if not isinstance(booking_dict, dict):
+            booking_dict = {}
+
         booking_dict["user_id"] = str(current_user["_id"])
+        booking_dict["booking_date"] = datetime.utcnow()
+        booking_dict["status"] = booking_dict.get("status", "pending")
+        booking_dict["payment_status"] = booking_dict.get("payment_status", "pending")
         
         result = await db.lab_test_bookings.insert_one(booking_dict)
         
@@ -85,6 +94,7 @@ async def create_booking(
             "booking_id": str(result.inserted_id)
         }
     except Exception as e:
+        print(f"[ERROR] Error creating booking: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating booking: {str(e)}"
