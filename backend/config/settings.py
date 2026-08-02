@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     
     # Google Gemini (FREE - Fast & High Quality)
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"  # gemini-1.5-flash is stable and widely available
+    GEMINI_MODEL: str = "gemini-2.0-flash"  # Stable, fast, supports vision
     
     # Hugging Face (FREE)
     HUGGINGFACE_API_KEY: Optional[str] = None

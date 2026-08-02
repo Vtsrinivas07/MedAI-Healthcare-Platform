@@ -63,48 +63,49 @@ class AIService:
         return img.resize((new_w, new_h), resample)
 
     async def extract_text_from_image(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> str:
-        """OCR / transcribe document-style images (lab reports, prescriptions) when Gemini is configured."""
-        # Always use Gemini for vision — Groq/OpenAI/etc. don't support image input
+        """OCR / transcribe document-style images using Gemini vision."""
         if settings.GEMINI_API_KEY:
             try:
-                import google.generativeai as genai
+                from google import genai as google_genai
+                from google.genai import types as genai_types
                 from PIL import Image
 
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                # Use configured model, fall back to stable alternatives if unavailable
-                vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
-                # Normalize: if user still has old 2.5-flash value, quietly downgrade
-                if "2.5" in vision_model_name:
-                    vision_model_name = "gemini-1.5-flash"
-                model = genai.GenerativeModel(vision_model_name)
+                client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+                vision_model = settings.GEMINI_MODEL or "gemini-2.0-flash"
+                if "1.5" in vision_model or "2.5" in vision_model:
+                    vision_model = "gemini-2.0-flash"
+
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
                 img = AIService._resize_pil_for_vision(img, max_edge=1600)
+
+                # Convert PIL image to bytes for the new SDK
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG")
+                img_bytes = buf.getvalue()
+
                 prompt = (
                     "Extract all readable text from this image (OCR). "
                     "If it is a lab report, prescription, discharge letter, or form, keep labels and values clear. "
                     "If there is almost no text, briefly describe what is shown in 2-4 sentences."
                 )
-                try:
-                    from google.generativeai.types import RequestOptions
-                    response = await asyncio.to_thread(
-                        model.generate_content,
-                        [prompt, img],
-                        request_options=RequestOptions(timeout=15),
-                    )
-                except TypeError:
-                    response = await asyncio.to_thread(model.generate_content, [prompt, img])
+
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=vision_model,
+                    contents=[
+                        genai_types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                        prompt,
+                    ],
+                )
                 text = (getattr(response, "text", None) or "").strip()
                 return text or "[No text returned from vision model]"
             except Exception as exc:
                 logger.exception("Gemini image extraction failed: %s", exc)
                 error_str = str(exc).lower()
                 if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
-                    return (
-                        "[Image text extraction failed: Quota Exceeded (429). "
-                        "The Gemini API free tier daily limit has been reached. Please wait or check your API key.]"
-                    )
+                    return "[Image extraction failed: Gemini quota exceeded. Please wait or check your API key.]"
                 return f"[Image text extraction failed: {str(exc)[:200]}]"
 
         return ""
@@ -112,69 +113,55 @@ class AIService:
     async def describe_image_basic(
         self, image_bytes: bytes, mime_type: str = "image/jpeg", user_question: str = ""
     ) -> str:
-        """Charts, screenshots, general 'what is this' — no EfficientNet weights."""
+        """Describe a medical image using Gemini vision."""
         q = (user_question or "").strip()
-        # Always use Gemini for vision — Groq/OpenAI/etc. don't support image input
         if settings.GEMINI_API_KEY:
             try:
-                import google.generativeai as genai
+                from google import genai as google_genai
+                from google.genai import types as genai_types
                 from PIL import Image
 
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                # Use configured model, fall back to stable alternatives if unavailable
-                vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
-                # Normalize: if user still has old 2.5-flash value, quietly downgrade
-                if "2.5" in vision_model_name:
-                    vision_model_name = "gemini-1.5-flash"
-                model = genai.GenerativeModel(vision_model_name)
+                client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+                vision_model = settings.GEMINI_MODEL or "gemini-2.0-flash"
+                if "1.5" in vision_model or "2.5" in vision_model:
+                    vision_model = "gemini-2.0-flash"
+
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
                 img = AIService._resize_pil_for_vision(img, max_edge=1280)
-                prompt = (
-                    "Describe this image for a non-expert: what it is (chart, screenshot, photo, etc.). "
-                    "Summarize visible text or numbers. "
-                    f"User question: \"{q if q else 'What is this?'}\" — answer using only the image. "
-                    "Do not give a disease diagnosis from medical images. Under 220 words."
-                )
-                gc = {"max_output_tokens": 768, "temperature": 0.35}
-                try:
-                    from google.generativeai.types import RequestOptions
 
-                    response = await asyncio.to_thread(
-                        model.generate_content,
-                        [prompt, img],
-                        generation_config=gc,
-                        request_options=RequestOptions(timeout=15),
-                    )
-                except TypeError:
-                    response = await asyncio.to_thread(
-                        model.generate_content, [prompt, img], generation_config=gc
-                    )
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG")
+                img_bytes = buf.getvalue()
+
+                prompt = (
+                    "You are a medical imaging assistant. Describe this medical image clearly for a healthcare professional. "
+                    "Identify visible structures, any abnormalities, patterns, or notable findings. "
+                    f"User question: \"{q if q else 'What is this image showing and are there any concerns?'}\" "
+                    "Provide a structured response with: 1) Image type, 2) Key findings, 3) Possible concerns, 4) Recommended next steps. "
+                    "Keep response under 300 words. Do not give a definitive diagnosis — recommend professional evaluation."
+                )
+
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=vision_model,
+                    contents=[
+                        genai_types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                        prompt,
+                    ],
+                )
                 return (getattr(response, "text", None) or "").strip()
             except Exception as exc:
                 logger.exception("describe_image_basic failed: %s", exc)
                 error_str = str(exc).lower()
                 if "quota" in error_str or "rate limit" in error_str or "429" in error_str:
-                    return (
-                        "[Basic mode: vision call failed: Quota Exceeded (429). "
-                        "The Gemini API free tier daily limit has been reached. "
-                        "Please update GEMINI_API_KEY in the environment or try again tomorrow.]"
-                    )
+                    return "[Vision failed: Gemini quota exceeded. Please wait or check your API key.]"
                 elif "api key" in error_str or "unauthorized" in error_str or "403" in error_str:
-                    return (
-                        "[Basic mode: vision call failed: Invalid API Key. "
-                        "The Gemini API key is incorrect or expired. "
-                        "Please verify your GEMINI_API_KEY in your environment variables.]"
-                    )
-                elif "timeout" in error_str:
-                    return (
-                        "[Basic mode: vision call failed: Request Timeout. "
-                        "The request to Gemini API timed out after 15 seconds. Please try again.]"
-                    )
-                return f"[Basic mode: vision call failed: {str(exc)[:200]}]"
+                    return "[Vision failed: Invalid Gemini API key. Please verify GEMINI_API_KEY.]"
+                return f"[Vision call failed: {str(exc)[:200]}]"
 
-        return "[Basic mode needs a vision API. Add GEMINI_API_KEY in your environment variables to enable image analysis.]"
+        return "[Vision needs GEMINI_API_KEY. Add it to your environment variables.]"
     
     def _init_gemini(self):
         """Initialize Google Gemini (Fast & Free - Highly Recommended)"""
@@ -350,97 +337,53 @@ class AIService:
         return response.choices[0].message.content
 
     async def _call_gemini(self, messages: List[dict], temperature: float = 0.7, max_tokens: int = 1200) -> str:
-        """Call Google Gemini API"""
+        """Call Google Gemini API using the new google-genai SDK"""
         try:
-            import google.generativeai as genai
+            from google import genai as google_genai
         except ImportError:
-            logger.error("google-generativeai package not installed. Run: pip install google-generativeai")
-            return "Error: google-generativeai package is required. Run: pip install google-generativeai"
-        
-        # Configure Gemini
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+            logger.error("google-genai package not installed. Run: pip install google-genai")
+            return "Error: google-genai package is required. Run: pip install google-genai"
 
-        generation_config = {
-            "temperature": temperature,
-            "max_output_tokens": max_tokens,
-        }
+        client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+        model_name = self.model or "gemini-2.0-flash"
+        # Normalize old model names
+        if "1.5" in model_name:
+            model_name = "gemini-2.0-flash"
 
-        # Some SDK versions accept a generation_config at construction time,
-        # others do not. Attempt both approaches and log which one succeeds
-        # so we can diagnose mismatches between installed SDKs.
-        model = None
-        model_init_variant = None
-        try:
-            logger.debug("Attempting Gemini GenerativeModel init with generation_config")
-            model = genai.GenerativeModel(self.model, generation_config=generation_config)
-            model_init_variant = "with_generation_config"
-            logger.debug("Gemini model initialized using 'with_generation_config' variant")
-        except Exception as e_init1:
-            logger.debug("Gemini model init with_generation_config failed: %s", e_init1)
-            try:
-                logger.debug("Attempting Gemini GenerativeModel init without generation_config")
-                model = genai.GenerativeModel(self.model)
-                model_init_variant = "without_generation_config"
-                # We'll supply generation hints at `generate_content` time if supported.
-                generation_config = {"temperature": temperature, "max_output_tokens": max_tokens}
-                logger.debug("Gemini model initialized using 'without_generation_config' variant")
-            except Exception as e_init2:
-                logger.exception("Failed to initialize Gemini model (both variants): %s", e_init2)
-                return f"Error initializing Gemini model: {str(e_init2)[:300]}"
-        
-        # Convert messages to Gemini format
+        # Build prompt from messages
         system_prompt = ""
         user_message = ""
-        
         for msg in messages:
             if msg["role"] == "system":
                 system_prompt = msg["content"]
             elif msg["role"] == "user":
                 user_message = msg["content"]
-        
         full_message = f"{system_prompt}\n\nUser: {user_message}" if system_prompt else user_message
 
-        # Use native async API for best latency — no thread-pool overhead
         try:
-            response = await asyncio.wait_for(
-                model.generate_content_async(full_message, generation_config=generation_config),
-                timeout=30,
+            from google.genai import types as genai_types
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=model_name,
+                contents=full_message,
+                config=genai_types.GenerateContentConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                ),
             )
-            return getattr(response, "text", str(response))
-        except TypeError:
-            # Older SDK without generation_config support — retry without it
-            try:
-                response = await asyncio.wait_for(
-                    model.generate_content_async(full_message),
-                    timeout=30,
-                )
-                return getattr(response, "text", str(response))
-            except Exception as exc:
-                last_exc = exc
+            return (getattr(response, "text", None) or "").strip()
         except Exception as exc:
             last_exc = exc
+            error_str = str(exc).lower()
+            logger.error("Gemini generate_content failed: %s", exc)
+            if "api key" in error_str or "unauthorized" in error_str or "403" in error_str:
+                return "⚠️ Gemini API key is invalid or expired. Please check your GEMINI_API_KEY."
+            elif "quota" in error_str or "rate limit" in error_str or "429" in error_str:
+                return "⚠️ Gemini API quota exceeded. Please wait a few minutes."
+            elif "not found" in error_str or "404" in error_str:
+                return f"⚠️ Gemini model '{model_name}' not found. Check your GEMINI_MODEL setting."
+            return f"[Gemini error: {str(exc)[:200]}]"
 
-        # Final fallback: synchronous call in thread pool
-        try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(model.generate_content, full_message, generation_config=generation_config),
-                timeout=35,
-            )
-            return getattr(response, "text", str(response))
-        except Exception as exc:
-            last_exc = exc
-
-        error_str = str(last_exc).lower()
-        logger.error("Gemini generate_content failed: %s", last_exc)
-        if "api key" in error_str or "unauthorized" in error_str or "403" in error_str:
-            return "⚠️ Gemini API key is invalid or expired. Please check your GEMINI_API_KEY in backend/.env"
-        elif "quota" in error_str or "rate limit" in error_str or "429" in error_str:
-            return "⚠️ Gemini API quota exceeded. Please wait a few minutes or check your quota at https://aistudio.google.com"
-        elif "timeout" in error_str:
-            return "⚠️ Gemini API request timed out. Please try again."
-        elif "network" in error_str or "connection" in error_str:
-            return "⚠️ Network error connecting to Gemini API. Please check your internet connection."
-        return f"[AI provider error: Gemini generate_content failed - {str(last_exc)[:100]}]"
     
     async def _call_huggingface(self, messages: List[dict]) -> str:
         """Call Hugging Face Inference API"""

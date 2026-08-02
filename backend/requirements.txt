@@ -13,6 +13,7 @@ python-jose[cryptography]
 bcrypt
 google-auth
 google-generativeai
+google-genai
 pypdf
 openai
 httpx
