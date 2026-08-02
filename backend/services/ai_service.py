@@ -64,7 +64,8 @@ class AIService:
 
     async def extract_text_from_image(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> str:
         """OCR / transcribe document-style images (lab reports, prescriptions) when Gemini is configured."""
-        if self.provider == "gemini" and settings.GEMINI_API_KEY:
+        # Always use Gemini for vision — Groq/OpenAI/etc. don't support image input
+        if settings.GEMINI_API_KEY:
             try:
                 import google.generativeai as genai
                 from PIL import Image
@@ -108,7 +109,8 @@ class AIService:
     ) -> str:
         """Charts, screenshots, general 'what is this' — no EfficientNet weights."""
         q = (user_question or "").strip()
-        if self.provider == "gemini" and settings.GEMINI_API_KEY:
+        # Always use Gemini for vision — Groq/OpenAI/etc. don't support image input
+        if settings.GEMINI_API_KEY:
             try:
                 import google.generativeai as genai
                 from PIL import Image
@@ -162,7 +164,7 @@ class AIService:
                     )
                 return f"[Basic mode: vision call failed: {str(exc)[:200]}]"
 
-        return "[Basic mode needs Gemini. Set AI_PROVIDER=gemini and GEMINI_API_KEY in backend/.env]"
+        return "[Basic mode needs a vision API. Add GEMINI_API_KEY in your environment variables to enable image analysis.]"
     
     def _init_gemini(self):
         """Initialize Google Gemini (Fast & Free - Highly Recommended)"""
