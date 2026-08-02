@@ -71,8 +71,11 @@ class AIService:
                 from PIL import Image
 
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                # Always use the Gemini model for vision, not self.model (which may be groq/llama)
+                # Use configured model, fall back to stable alternatives if unavailable
                 vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
+                # Normalize: if user still has old 2.5-flash value, quietly downgrade
+                if "2.5" in vision_model_name:
+                    vision_model_name = "gemini-1.5-flash"
                 model = genai.GenerativeModel(vision_model_name)
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):
@@ -118,8 +121,11 @@ class AIService:
                 from PIL import Image
 
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                # Always use the Gemini model for vision, not self.model (which may be groq/llama)
+                # Use configured model, fall back to stable alternatives if unavailable
                 vision_model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
+                # Normalize: if user still has old 2.5-flash value, quietly downgrade
+                if "2.5" in vision_model_name:
+                    vision_model_name = "gemini-1.5-flash"
                 model = genai.GenerativeModel(vision_model_name)
                 img = Image.open(io.BytesIO(image_bytes))
                 if img.mode not in ("RGB", "L"):

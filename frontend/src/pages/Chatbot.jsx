@@ -439,25 +439,49 @@ function MessageBubble({ message, userProfile }) {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const navigate = useNavigate();
 
+  // Track which actions have been completed for this diagnosis card
+  // Keys: 'reminders' | 'appointment' | 'labTests' | 'pharmacy'
+  const [doneActions, setDoneActions] = useState({});
+
+  const markDone = (action) => setDoneActions(prev => ({ ...prev, [action]: true }));
+  const unmarkDone = (action) => setDoneActions(prev => { const n = { ...prev }; delete n[action]; return n; });
+
+  // On mount: validate each action against the backend — re-enable if deleted
   useEffect(() => {
-    const checkOrders = async () => {
+    const validate = async () => {
       try {
         const token = localStorage.getItem('authToken');
         if (!token) return;
-        const res = await fetch(`${API_URL}/api/orders/`, {
-          headers: { Authorization: `Bearer ${token}` }
+
+        const [ordersRes, remindersRes, consultRes] = await Promise.all([
+          fetch(`${API_URL}/api/orders/`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/medicine/reminders?active_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/consultations`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        const [ordersData, remindersData, consultData] = await Promise.all([
+          ordersRes.json().catch(() => ({})),
+          remindersRes.json().catch(() => []),
+          consultRes.json().catch(() => ({})),
+        ]);
+
+        const hasOrders = ordersRes.ok && (ordersData?.data?.length > 0 || ordersData?.orders?.length > 0);
+        const hasReminders = remindersRes.ok && Array.isArray(remindersData) && remindersData.length > 0;
+        const hasConsultation = consultRes.ok && (
+          (Array.isArray(consultData) && consultData.length > 0) ||
+          (Array.isArray(consultData?.data) && consultData.data.length > 0)
+        );
+
+        setDoneActions({
+          ...(hasOrders ? { pharmacy: true } : {}),
+          ...(hasReminders ? { reminders: true } : {}),
+          ...(hasConsultation ? { appointment: true } : {}),
         });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data?.success && Array.isArray(data.data) && data.data.length > 0) {
-          setHasPurchasedMeds(true);
-        }
-      } catch (err) {
-        console.error('Error checking pharmacy orders:', err);
-      }
+        setHasPurchasedMeds(hasOrders);
+      } catch {}
     };
-    checkOrders();
-    // Re-check when an order is placed in the same session
-    const onOrderPlaced = () => setHasPurchasedMeds(true);
+    validate();
+    const onOrderPlaced = () => { setHasPurchasedMeds(true); markDone('pharmacy'); };
     window.addEventListener('pharmacyOrderPlaced', onOrderPlaced);
     return () => window.removeEventListener('pharmacyOrderPlaced', onOrderPlaced);
   }, []);
@@ -545,8 +569,8 @@ function MessageBubble({ message, userProfile }) {
 
       alert(`🎉 Appointment Confirmed with ${payload.doctor_name} on ${payload.date} at ${payload.time}!\n\nRedirecting to your Consultations dashboard...`);
       setActionStatus(`✅ Appointment created with ${payload.doctor_name}.`);
+      markDone('appointment');
       setShowBookingModal(false);
-      
       window.location.href = '/consultations';
     } catch (err) {
       console.error('Booking error:', err);
@@ -642,7 +666,7 @@ function MessageBubble({ message, userProfile }) {
       }));
 
       setActionStatus(`✅ ${reminderList.length} reminder(s) added — opening Medicine Reminders...`);
-      // Navigate without full page reload so auth state is preserved
+      markDone('reminders');
       navigate('/medicines');
     } catch (err) {
       console.error('Error adding reminders:', err);
@@ -779,6 +803,7 @@ function MessageBubble({ message, userProfile }) {
       disease: diagnosis?.disease || '',
     };
     localStorage.setItem('pendingPharmacyOrder', JSON.stringify(pendingData));
+    markDone('pharmacy');
     window.location.href = '/pharmacy';
   };
 
@@ -1339,10 +1364,24 @@ function MessageBubble({ message, userProfile }) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleBookAppointment(diagnosis)}
-                        className="mt-3 w-full py-1.5 px-3 rounded-lg bg-primary hover:bg-blue-600 text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        onClick={() => {
+                          if (doneActions.appointment) {
+                            if (window.confirm('You already booked an appointment. Book another one?')) {
+                              unmarkDone('appointment');
+                              handleBookAppointment(diagnosis);
+                            }
+                          } else {
+                            handleBookAppointment(diagnosis);
+                          }
+                        }}
+                        className={`mt-3 w-full py-1.5 px-3 rounded-lg text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          doneActions.appointment
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : 'bg-primary hover:bg-blue-600'
+                        }`}
                       >
-                        <CalendarClock className="w-3.5 h-3.5" /> Book Appointment Here
+                        <CalendarClock className="w-3.5 h-3.5" />
+                        {doneActions.appointment ? '✓ Appointment Booked' : 'Book Appointment Here'}
                       </button>
                     </div>
 
@@ -1409,15 +1448,31 @@ function MessageBubble({ message, userProfile }) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleOpenLabBooking(diagnosis)}
+                        onClick={() => {
+                          if (doneActions.labTests) {
+                            if (window.confirm('Lab tests already booked. Book again?')) {
+                              unmarkDone('labTests');
+                              handleOpenLabBooking(diagnosis);
+                            }
+                          } else {
+                            markDone('labTests');
+                            handleOpenLabBooking(diagnosis);
+                          }
+                        }}
                         className={`mt-3 w-full py-1.5 px-3 rounded-lg text-white font-semibold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          diagnosis.carePlan?.lab_tests_required
+                          doneActions.labTests
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : diagnosis.carePlan?.lab_tests_required
                             ? 'bg-cyan-600 hover:bg-cyan-500'
                             : 'bg-sidebar-hover hover:bg-sidebar-border text-cyan-300 hover:text-white border border-sidebar-border'
                         }`}
                       >
                         <FileText className="w-3.5 h-3.5" />
-                        {diagnosis.carePlan?.lab_tests_required ? 'Book Required Lab Tests Here' : 'Book Optional Lab Tests Here'}
+                        {doneActions.labTests
+                          ? '✓ Lab Tests Booked'
+                          : diagnosis.carePlan?.lab_tests_required
+                          ? 'Book Required Lab Tests Here'
+                          : 'Book Optional Lab Tests Here'}
                       </button>
                     </div>
 
